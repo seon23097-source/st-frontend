@@ -111,8 +111,14 @@
 .evaluation-table td {
   padding: 10px 12px;
   border-bottom: 1px solid var(--border-light);
+  border-right: 1px solid var(--border-light);
   color: var(--text-primary);
   transition: var(--transition);
+  text-align: center;
+}
+
+.evaluation-table th {
+  border-right: 1px solid rgba(255,255,255,0.2);
 }
 
 .evaluation-table tbody tr:hover td {

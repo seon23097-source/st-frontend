@@ -124,9 +124,9 @@ function Checklist() {
     }
   };
 
-  const isChecked = (itemId, studentId) => {
+  const getCheckValue = (itemId, studentId) => {
     const check = checks.find(c => c.item_id === itemId && c.student_id === studentId);
-    return check?.is_checked || false;
+    return check?.check_value ?? 0;
   };
 
   const activeTopics = topics.filter(t => t.is_active);
@@ -266,15 +266,18 @@ function Checklist() {
                     {students.map(student => (
                       <tr key={student.id}>
                         <td className="student-name">{student.name}</td>
-                        {items.map(item => (
-                          <td
-                            key={`${student.id}-${item.id}`}
-                            className={`check-cell ${isChecked(item.id, student.id) ? 'checked' : ''}`}
-                            onClick={() => handleToggleCheck(item.id, student.id)}
-                          >
-                            {isChecked(item.id, student.id) ? '✓' : ''}
-                          </td>
-                        ))}
+                        {items.map(item => {
+                            const val = getCheckValue(item.id, student.id);
+                            return (
+                              <td
+                                key={`${student.id}-${item.id}`}
+                                className={`check-cell ${val === 1 ? 'checked' : val === 2 ? 'crossed' : ''}`}
+                                onClick={() => handleToggleCheck(item.id, student.id)}
+                              >
+                                {val === 1 ? '✓' : val === 2 ? '✗' : ''}
+                              </td>
+                            );
+                          })}
                       </tr>
                     ))}
                   </tbody>
