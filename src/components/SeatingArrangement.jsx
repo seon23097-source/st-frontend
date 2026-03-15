@@ -82,15 +82,24 @@ function SeatingArrangement() {
 
   // ── 이력 조회 ──
   const checkHistory = async (row,col) => {
-    const group=findGroupForCell(row,col);
-    if(group.length<2){ setHistoryPopup(null); return; }
     const cur=grid[row][col];
-    const partnerIds=group.filter(g=>g.student.id!==cur.id).map(g=>g.student.id);
+    if(!cur){ setHistoryPopup(null); return; }
     try {
       const history=await seatingAPI.getHistory(cur.id);
-      const matching=history.filter(h=>(h.partner_ids||[]).some(pid=>partnerIds.includes(pid)));
-      if(matching.length>0) setHistoryPopup({row,col,partners:group.filter(g=>g.student.id!==cur.id).map(g=>g.student.name),history:matching});
-      else setHistoryPopup(null);
+      if(!history||history.length===0){ setHistoryPopup(null); return; }
+      // 이력에서 파트너 이름 조회
+      const historyWithNames = history.slice(0,5).map(h=>{
+        const partnerNames = (h.partner_ids||[]).map(pid=>{
+          const s = students.find(st=>st.id===pid);
+          return s ? s.name : `${pid}번`;
+        });
+        return {
+          date: h.arrangement_date ? String(h.arrangement_date).substring(0,10) : '',
+          partners: partnerNames,
+          group_type: h.group_type,
+        };
+      });
+      setHistoryPopup({row, col, studentName: cur.name, history: historyWithNames});
     } catch(e){ console.error('이력 조회 실패:',e); }
   };
 
@@ -201,14 +210,14 @@ function SeatingArrangement() {
       const pairHistory={};
       allToArrange.forEach((s,i)=>{ const p=new Set(); histories[i].forEach(h=>(h.partner_ids||[]).forEach(pid=>p.add(pid))); pairHistory[s.id]=p; });
       const shouldSeparate=(id1,id2)=>separateStudents.some(pair=>(pair[0]===id1&&pair[1]===id2)||(pair[0]===id2&&pair[1]===id1));
-      const isCellEmpty=(r,c)=>r>=0&&r<10&&c>=0&&c<10&&!newGrid[r][c];
+      const isCellEmpty=(r,c)=>r>=0&&r<8&&c>=0&&c<10&&!newGrid[r][c]; // 행 0~7만 사용 (8,9행 제외)
       let si=0;
 
       if(autoArrangeMode==='pair'){
         const cw=3,tw=numColumns*cw-1,sc=Math.floor((10-tw)/2);
         const columns=[];
         for(let i=0;i<numColumns;i++){ const c1=sc+i*cw,c2=c1+1; if(c2<10) columns.push([c1,c2]); }
-        const rows=[]; for(let r=9;r>=0;r-=2) rows.push(r);
+        const rows=[]; for(let r=7;r>=0;r-=2) rows.push(r); // 7부터 시작
         const frontQueue=[...frontList];
         for(const row of rows){
           for(const cg of columns){
@@ -243,7 +252,7 @@ function SeatingArrangement() {
         const gr=Math.ceil(groupSize/2),cw=3,tw=numColumns*cw-1,sc=Math.floor((10-tw)/2);
         const columns=[];
         for(let i=0;i<numColumns;i++){ const c1=sc+i*cw,c2=c1+1; if(c1<10&&c2<10) columns.push([c1,c2]); }
-        const bg=gr+1; const blockRows=[]; let sr=9;
+        const bg=gr+1; const blockRows=[]; let sr=7; // 7부터 시작
         while(sr-gr+1>=0){ blockRows.push(sr); sr-=bg; }
         const fq=[...frontList];
         for(const bsr of blockRows){
@@ -395,17 +404,18 @@ function SeatingArrangement() {
                                 <div className="student-card-wrapper">
                                   <div className="student-card"
                                     draggable onDragStart={e=>handleDragStart(e,cell,true,i,j)}>
-                                    {cell.student_number}
+                                    {cell.name}
                                   </div>
                                   <button className="btn-remove-cell" onClick={e=>{e.stopPropagation();handleRemoveFromGrid(i,j);}}>×</button>
                                 </div>
                               )}
                               {historyPopup?.row===i&&historyPopup?.col===j&&historyPopup.history.length>0&&(
                                 <div className="history-popup" onMouseEnter={()=>{}} onClick={e=>e.stopPropagation()}>
-                                  <div className="history-popup-title">⚠️ 이전 동석 기록</div>
-                                  {historyPopup.partners.map((partnerName,idx)=>(
+                                  <div className="history-popup-title">📋 {historyPopup.studentName} 동석 이력</div>
+                                  {historyPopup.history.map((h,idx)=>(
                                     <div key={idx} className="history-popup-item">
-                                      <span className="history-popup-warning">{partnerName}와 함께 앉은 적 있음</span>
+                                      <span className="history-popup-date">{h.date}</span>
+                                      <span className="history-popup-warning">{h.partners.join(', ')}와 함께 앉음</span>
                                     </div>
                                   ))}
                                 </div>
