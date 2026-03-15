@@ -370,6 +370,10 @@ export default function Attendance() {
     // DB 저장
     try {
       await attendanceAPI.saveRecord(sid, key, next);
+      // DB에서 다시 읽어서 최신 상태 반영
+      const fresh = await attendanceAPI.getRecords();
+      setRecords(fresh || {});
+      localStorage.setItem('att_records', JSON.stringify(fresh || {}));
     } catch(e) {
       console.error('출결 저장 실패:', e);
     }
