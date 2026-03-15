@@ -389,7 +389,8 @@ function SeatingArrangement() {
                               className={`grid-cell ${cell?'occupied':''} ${cellType==='pair'?'has-pair':''} ${cellType==='group'?'has-group':''}`}
                               onDragOver={handleDragOver}
                               onDrop={e=>handleDrop(e,i,j)}
-                              onClick={()=>cell&&checkHistory(i,j)}>
+                              onMouseEnter={()=>cell&&checkHistory(i,j)}
+                              onMouseLeave={()=>setHistoryPopup(null)}>
                               {cell&&(
                                 <div className="student-card-wrapper">
                                   <div className="student-card"
@@ -399,12 +400,12 @@ function SeatingArrangement() {
                                   <button className="btn-remove-cell" onClick={e=>{e.stopPropagation();handleRemoveFromGrid(i,j);}}>×</button>
                                 </div>
                               )}
-                              {historyPopup?.row===i&&historyPopup?.col===j&&(
-                                <div className="history-popup" onClick={e=>e.stopPropagation()}>
-                                  <div className="history-popup-title">이전 동석 기록</div>
-                                  {historyPopup.history.map((h,idx)=>(
+                              {historyPopup?.row===i&&historyPopup?.col===j&&historyPopup.history.length>0&&(
+                                <div className="history-popup" onMouseEnter={()=>{}} onClick={e=>e.stopPropagation()}>
+                                  <div className="history-popup-title">⚠️ 이전 동석 기록</div>
+                                  {historyPopup.partners.map((partnerName,idx)=>(
                                     <div key={idx} className="history-popup-item">
-                                      <span className="history-popup-warning">⚠️ {historyPopup.partners.join(', ')}와 이전에 함께 앉음</span>
+                                      <span className="history-popup-warning">{partnerName}와 함께 앉은 적 있음</span>
                                     </div>
                                   ))}
                                 </div>
