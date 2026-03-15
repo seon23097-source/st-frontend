@@ -1,0 +1,394 @@
+/* ===== 체크리스트 컨테이너 ===== */
+.checklist-container {
+  display: flex;
+  height: 100%;
+  gap: 24px;
+}
+
+/* ===== 왼쪽 사이드바 ===== */
+.checklist-sidebar {
+  width: 280px;
+  min-width: 280px;
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.checklist-sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.checklist-sidebar-header h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.checklist-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.checklist-section:first-of-type {
+  flex: 2; /* 수합 중 영역 2/3 */
+}
+
+.checklist-section:last-of-type {
+  flex: 1; /* 수합 완료 영역 1/3 */
+  border-top: 1px solid var(--border-light);
+}
+
+.checklist-section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-secondary);
+  padding: 16px 20px 12px;
+  margin: 0;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.checklist-topics-scroll {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 12px 12px;
+}
+
+/* ===== 주제 아이템 ===== */
+.checklist-topic-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  margin-bottom: 6px;
+  border-radius: 10px;
+  background: var(--bg-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+}
+
+.checklist-topic-item:hover {
+  background: #e5e7eb;
+  transform: translateX(2px);
+}
+
+.checklist-topic-item.selected {
+  background: var(--primary);
+  color: white;
+}
+
+.checklist-topic-item.inactive {
+  opacity: 0.65;
+}
+
+.checklist-topic-item.inactive.selected {
+  background: #9ca3af;
+  color: white;
+}
+
+.topic-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topic-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.checklist-topic-item:hover .topic-actions {
+  opacity: 1;
+}
+
+.checklist-topic-item.selected .topic-actions {
+  opacity: 1;
+}
+
+.btn-topic-action {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: none;
+  background: rgba(0, 0, 0, 0.1);
+  color: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.btn-topic-action:hover {
+  background: rgba(0, 0, 0, 0.2);
+  transform: scale(1.1);
+}
+
+.btn-complete {
+  color: #10b981;
+}
+
+.btn-complete:hover {
+  background: #10b981 !important;
+  color: white;
+}
+
+.btn-reactivate {
+  color: #3b82f6;
+}
+
+.btn-reactivate:hover {
+  background: #3b82f6 !important;
+  color: white;
+}
+
+.btn-delete {
+  color: #ef4444;
+}
+
+.btn-delete:hover {
+  background: #ef4444 !important;
+  color: white;
+}
+
+/* ===== 메인 영역 ===== */
+.checklist-main {
+  flex: 1;
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  padding: 28px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.checklist-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.checklist-header h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0;
+}
+
+.checklist-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 16px;
+  color: var(--text-secondary);
+}
+
+.checklist-empty h2 {
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  margin: 0;
+}
+
+.checklist-empty p {
+  font-size: 15px;
+  margin: 0;
+}
+
+/* ===== 테이블 ===== */
+.checklist-table-wrapper {
+  flex: 1;
+  overflow: auto;
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+}
+
+.checklist-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.checklist-table thead {
+  background: var(--bg-secondary);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.checklist-table th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-secondary);
+  border-bottom: 2px solid var(--border-light);
+}
+
+.checklist-table .student-col {
+  width: 120px;
+  min-width: 120px;
+  position: sticky;
+  left: 0;
+  background: var(--bg-secondary);
+  z-index: 11;
+}
+
+.checklist-table .item-col {
+  min-width: 100px;
+  text-align: center;
+}
+
+.item-header {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-delete-item {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  border: none;
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: all 0.2s;
+}
+
+.item-header:hover .btn-delete-item {
+  opacity: 1;
+}
+
+.btn-delete-item:hover {
+  background: #ef4444;
+  color: white;
+}
+
+.checklist-table tbody tr {
+  transition: background 0.2s;
+}
+
+.checklist-table tbody tr:hover {
+  background: #f9fafb;
+}
+
+.checklist-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.student-name {
+  font-weight: 500;
+  color: var(--text-primary);
+  position: sticky;
+  left: 0;
+  background: white;
+}
+
+.checklist-table tbody tr:hover .student-name {
+  background: #f9fafb;
+}
+
+.check-cell {
+  text-align: center;
+  cursor: pointer;
+  font-size: 18px;
+  color: #10b981;
+  user-select: none;
+  transition: all 0.2s;
+}
+
+.check-cell:hover {
+  background: #f0fdf4;
+}
+
+.check-cell.checked {
+  background: #d1fae5;
+}
+
+.check-cell.checked:hover {
+  background: #a7f3d0;
+}
+
+/* ===== 로딩 ===== */
+.checklist-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 400px;
+  gap: 16px;
+  color: var(--text-secondary);
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--border-light);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ===== 빈 상태 ===== */
+.empty-state {
+  padding: 20px;
+  text-align: center;
+}
+
+.empty-state p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* ===== 반응형 ===== */
+@media (max-width: 1024px) {
+  .checklist-container {
+    flex-direction: column;
+  }
+
+  .checklist-sidebar {
+    width: 100%;
+    max-height: 300px;
+  }
+
+  .checklist-section:first-of-type {
+    flex: 1;
+  }
+
+  .checklist-section:last-of-type {
+    flex: 1;
+  }
+}

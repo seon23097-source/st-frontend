@@ -1,0 +1,105 @@
+.student-manager { max-width: 900px; animation: fadeIn 0.3s ease; }
+
+.student-manager-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  padding: 20px 24px;
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  border-left: 5px solid var(--primary);
+}
+
+.student-manager-header h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  margin-bottom: 4px;
+}
+
+.student-count-info { font-size: 13px; color: var(--text-secondary); }
+
+.student-section { margin-bottom: 24px; }
+
+.section-label {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 5px 14px;
+  border-radius: 20px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.active-label { background: var(--success-bg); color: var(--success); }
+.inactive-label { background: var(--danger-bg); color: var(--danger); }
+.inactive-count {
+  background: var(--danger);
+  color: white;
+  border-radius: 10px;
+  padding: 1px 8px;
+  font-size: 12px;
+}
+
+.student-table-wrap {
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: hidden;
+}
+
+.student-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+
+.student-table thead { background: var(--primary); }
+.student-table th {
+  padding: 13px 16px;
+  text-align: left;
+  font-weight: 700;
+  color: white;
+}
+
+.student-table td {
+  padding: 13px 16px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary);
+}
+.student-table tr:last-child td { border-bottom: none; }
+.student-table tbody tr:hover td { background: var(--primary-bg); }
+
+.inactive-row td { color: var(--text-tertiary); }
+.inactive-row:hover td { background: var(--danger-bg) !important; }
+
+.td-number { width: 70px; font-weight: 700; color: var(--primary-dark); }
+.td-name { font-weight: 500; }
+.td-date { color: var(--text-secondary); font-size: 13px; width: 110px; }
+.td-actions { width: 120px; display: flex; gap: 12px; }
+
+.btn-text {
+  background: none; border: none;
+  font-size: 13px; font-weight: 600;
+  cursor: pointer; padding: 4px 0;
+  transition: var(--transition);
+}
+.btn-edit { color: var(--primary); }
+.btn-edit:hover { color: var(--primary-dark); text-decoration: underline; }
+.btn-deactivate { color: var(--danger); }
+.btn-deactivate:hover { filter: brightness(0.8); text-decoration: underline; }
+.btn-activate { color: var(--success); font-weight: 700; }
+.btn-activate:hover { text-decoration: underline; }
+
+.btn-xs { padding: 4px 10px; font-size: 12px; }
+
+.edit-name-row { display: flex; align-items: center; gap: 8px; }
+.edit-name-row .input { padding: 6px 10px; font-size: 13px; }
+
+.empty-inactive {
+  padding: 20px 24px;
+  color: var(--text-tertiary);
+  font-size: 14px;
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  text-align: center;
+}

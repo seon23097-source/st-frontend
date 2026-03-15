@@ -1,0 +1,260 @@
+.evaluation-manager { animation: fadeIn 0.3s ease; }
+
+.evaluation-loading, .evaluation-error {
+  display: flex; flex-direction: column;
+  justify-content: center; align-items: center;
+  padding: 60px; gap: 20px;
+  color: var(--text-secondary);
+}
+
+/* ===== 헤더 ===== */
+.evaluation-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 24px;
+  padding: 20px 24px;
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  border-left: 5px solid var(--primary);
+}
+
+.evaluation-header h2 {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  margin-bottom: 4px;
+}
+
+.category-info { font-size: 13px; color: var(--text-secondary); }
+
+.evaluation-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+/* ===== 테이블 컨테이너 ===== */
+.evaluation-table-container {
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-md);
+  overflow: auto;
+  max-height: calc(100vh - 260px);
+}
+
+.evaluation-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 14px;
+}
+
+/* ===== 테이블 헤더 ===== */
+.evaluation-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* 제목 행 (평가명) */
+.thead-title-row th {
+  padding: 11px 12px;
+  background: var(--sidebar-bg);
+  color: white;
+  font-size: 13px;
+  font-weight: 700;
+  border-bottom: 1px solid rgba(255,255,255,0.2);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.th-title {
+  text-align: center;
+  white-space: nowrap;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.no-title {
+  color: rgba(255,255,255,0.5);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 11px;
+}
+
+/* 날짜 행 */
+.thead-date-row th {
+  padding: 8px 12px;
+  background: var(--primary);
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.evaluation-table th {
+  padding: 10px 12px;
+  text-align: left;
+  font-weight: 600;
+  color: white;
+  white-space: nowrap;
+}
+
+.th-sticky {
+  position: sticky;
+  left: 0;
+  z-index: 11;
+  background: var(--sidebar-bg);
+}
+.th-sticky:nth-child(2) { left: 120px; }
+
+/* ===== 테이블 바디 ===== */
+.evaluation-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-primary);
+  transition: var(--transition);
+}
+
+.evaluation-table tbody tr:hover td {
+  background: var(--primary-bg);
+}
+
+.td-sticky {
+  position: sticky;
+  left: 0;
+  z-index: 5;
+  background: white;
+  color: var(--text-primary);
+}
+.td-sticky:nth-child(2) { left: 120px; }
+
+.evaluation-table tbody tr:hover .td-sticky {
+  background: var(--primary-bg);
+}
+
+.student-name-cell {
+  font-weight: 600;
+  color: var(--text-primary);
+  cursor: pointer;
+  min-width: 120px;
+}
+.student-name-cell:hover { color: var(--primary-dark); }
+
+.average-cell {
+  font-weight: 700;
+  color: var(--primary-dark);
+  text-align: center;
+  min-width: 80px;
+  background: var(--primary-bg);
+}
+
+.th-date { font-size: 12px; white-space: nowrap; text-align: center; }
+
+/* ===== 점수 셀 ===== */
+.score-cell {
+  text-align: center;
+  min-width: 110px;
+  position: relative;
+  padding: 6px 8px;
+  vertical-align: middle;
+}
+.score-cell:hover { background: var(--primary-bg); }
+
+/* 점수 배지 */
+.score-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  background: var(--accent-bg);
+  border: 1px solid var(--accent-light);
+  border-radius: 20px;
+  padding: 3px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  margin: 2px;
+  white-space: nowrap;
+}
+
+.score-delete-btn {
+  background: none;
+  border: none;
+  color: var(--danger);
+  font-size: 13px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+  opacity: 0.6;
+  transition: var(--transition);
+}
+.score-delete-btn:hover { opacity: 1; }
+
+.score-add-btn {
+  background: white;
+  border: 1.5px dashed var(--primary-light);
+  color: var(--primary);
+  border-radius: 20px;
+  padding: 3px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  opacity: 0;
+  transition: var(--transition);
+  margin: 2px;
+}
+.score-cell:hover .score-add-btn { opacity: 1; }
+.score-add-btn:hover { background: var(--primary); border-color: var(--primary); color: white; }
+
+.score-input {
+  width: 80px;
+  padding: 6px 8px;
+  border: 2px solid var(--primary);
+  border-radius: var(--radius-sm);
+  text-align: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text-primary);
+  background: white;
+}
+.score-input:focus { outline: none; box-shadow: 0 0 0 3px rgba(123,167,188,0.25); }
+
+.date-input {
+  background: transparent;
+  border: none;
+  color: white;
+  font-weight: 600;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+}
+.date-input::-webkit-calendar-picker-indicator { filter: invert(1); }
+
+/* ===== 모달 ===== */
+.date-modal-row {
+  display: flex; gap: 12px;
+}
+.date-modal-row .form-group { flex: 1; }
+
+/* ===== 학생 상세 ===== */
+.student-detail-overlay {
+  position: fixed; inset: 0;
+  background: rgba(60,50,100,0.4);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 1000; padding: 24px;
+}
+.student-detail-modal {
+  background: white;
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 100%; max-width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: fadeIn 0.2s ease;
+}
+
+/* 빈 셀 안내 */
+.empty-score-hint {
+  font-size: 12px;
+  color: var(--text-tertiary);
+  font-style: italic;
+}

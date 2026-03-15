@@ -1,0 +1,51 @@
+.setup-container {
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+  background: linear-gradient(135deg, #A8C8D8 0%, #C4B8E8 50%, #B8D8C8 100%);
+}
+
+.setup-card {
+  background: rgba(255, 255, 255, 0.95);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 20px 60px rgba(100, 90, 160, 0.2);
+  padding: 48px;
+  max-width: 440px;
+  width: 100%;
+  backdrop-filter: blur(10px);
+}
+
+.setup-header {
+  text-align: center;
+  margin-bottom: 36px;
+}
+
+.setup-header h1 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary-dark);
+  margin-bottom: 10px;
+}
+
+.setup-header p {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.setup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.btn-large {
+  padding: 14px 24px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+@media (max-width: 768px) {
+  .setup-card { padding: 32px 24px; }
+}
