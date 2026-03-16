@@ -210,13 +210,13 @@ export const presentationAPI = {
 
 // ── Today API ──────────────────────────────────────────────
 export const todayAPI = {
-  getMemo: (date) => apiCall(`/today/memo?date=${date}`),
-  saveMemo: (date, content) => apiCall('/today/memo', { method: 'POST', body: JSON.stringify({ date, content }) }),
-  getTodos: (date) => apiCall(`/today/todos?date=${date}`),
-  addTodo: (date, text) => apiCall('/today/todos', { method: 'POST', body: JSON.stringify({ date, text }) }),
-  toggleTodo: (id) => apiCall(`/today/todos/${id}/toggle`, { method: 'PATCH' }),
-  deleteTodo: (id) => apiCall(`/today/todos/${id}`, { method: 'DELETE' }),
-  carryOver: (from_date, to_date) => apiCall('/today/todos/carry-over', { method: 'POST', body: JSON.stringify({ from_date, to_date }) }),
-  getNotice: (date) => apiCall(`/today/notice?date=${date}`),
-  saveNotice: (date, content) => apiCall('/today/notice', { method: 'POST', body: JSON.stringify({ date, content }) }),
+  getMemo: (date) => api.get(`/today/memo?date=${date}`),
+  saveMemo: (date, content) => api.post('/today/memo', { date, content }),
+  getTodos: (date) => api.get(`/today/todos?date=${date}`),
+  addTodo: (date, text) => api.post('/today/todos', { date, text }),
+  toggleTodo: (id) => api.patch(`/today/todos/${id}/toggle`),
+  deleteTodo: (id) => api.delete(`/today/todos/${id}`),
+  carryOver: (from_date, to_date) => api.post('/today/todos/carry-over', { from_date, to_date }),
+  getNotice: (date) => api.get(`/today/notice?date=${date}`),
+  saveNotice: (date, content) => api.post('/today/notice', { date, content }),
 };
