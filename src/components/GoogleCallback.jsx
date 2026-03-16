@@ -26,6 +26,8 @@ export default function GoogleCallback({ onLogin }) {
       saveToken(token);
       const teacher = { display_name: displayName ? decodeURIComponent(displayName) : '선생님' };
       saveTeacher(teacher);
+      // URL에서 콜백 파라미터 제거 후 onLogin 호출
+      window.location.hash = '/';
       onLogin(teacher);
     } else {
       setError('토큰이 없습니다.');
