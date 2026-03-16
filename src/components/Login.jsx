@@ -9,8 +9,7 @@ export default function Login({ onLogin }) {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+  const handleLogin = async () => {
     setError('');
     setLoading(true);
     try {
@@ -91,7 +90,7 @@ export default function Login({ onLogin }) {
         </div>
 
         {/* 기존 로그인 */}
-        <form onSubmit={handleLogin}>
+        <div>
           <div style={{ marginBottom: '14px' }}>
             <input
               className="input"
@@ -99,8 +98,8 @@ export default function Login({ onLogin }) {
               placeholder="아이디"
               value={username}
               onChange={e => setUsername(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleLogin()}
               style={{ width: '100%' }}
-              required
             />
           </div>
           <div style={{ marginBottom: '20px' }}>
@@ -110,8 +109,8 @@ export default function Login({ onLogin }) {
               placeholder="비밀번호"
               value={password}
               onChange={e => setPassword(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleLogin()}
               style={{ width: '100%' }}
-              required
             />
           </div>
           {error && (
@@ -119,10 +118,10 @@ export default function Login({ onLogin }) {
               {error}
             </div>
           )}
-          <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
+          <button className="btn btn-primary" style={{ width: '100%' }} disabled={loading} onClick={handleLogin}>
             {loading ? '로그인 중...' : '로그인'}
           </button>
-        </form>
+        </div>
       </div>
     </div>
   );
