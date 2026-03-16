@@ -5,9 +5,14 @@ export default function GoogleCallback({ onLogin }) {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    const hash = window.location.hash; // #/auth/callback?token=...
-    const search = hash.includes('?') ? hash.split('?')[1] : '';
-    const params = new URLSearchParams(search);
+    // window.location.href 전체에서 파싱
+    const href = window.location.href;
+    const queryStart = href.indexOf('?');
+    if (queryStart === -1) {
+      setError('잘못된 콜백 URL입니다.');
+      return;
+    }
+    const params = new URLSearchParams(href.slice(queryStart));
     const token = params.get('token');
     const errorMsg = params.get('error');
     const displayName = params.get('display_name');
@@ -23,7 +28,7 @@ export default function GoogleCallback({ onLogin }) {
       saveTeacher(teacher);
       onLogin(teacher);
     } else {
-      setError('로그인 처리 중 오류가 발생했습니다.');
+      setError('토큰이 없습니다.');
     }
   }, []);
 
