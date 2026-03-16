@@ -1,126 +1,129 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { authAPI, saveToken, saveTeacher } from '../utils/api';
-import './Login.css';
 
-// 로컬스토리지에 배경 이미지 저장/불러오기
-const BG_KEY = 'login_bg_image';
-const loadBg = () => localStorage.getItem(BG_KEY) || null;
-const saveBg = (dataUrl) => localStorage.setItem(BG_KEY, dataUrl);
-const removeBg = () => localStorage.removeItem(BG_KEY);
+const BACKEND_URL = 'https://st.looool.xyz';
 
-function Login({ onLogin }) {
-  const [form, setForm] = useState({ username: '', password: '' });
-  const [loading, setLoading] = useState(false);
+export default function Login({ onLogin }) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [bgImage, setBgImage] = useState(loadBg);
-  const fileRef = useRef(null);
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
+  const handleLogin = async (e) => {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
-      const result = await authAPI.login(form.username, form.password);
-      saveToken(result.token);
-      saveTeacher(result.teacher);
-      onLogin();
+      const data = await authAPI.login(username, password);
+      saveToken(data.token);
+      saveTeacher(data.teacher);
+      onLogin(data.teacher);
     } catch (err) {
-      setError(err.message);
+      setError(err.message || '로그인 실패');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleBgChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
-      saveBg(ev.target.result);
-      setBgImage(ev.target.result);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  const handleBgRemove = () => {
-    removeBg();
-    setBgImage(null);
-    fileRef.current.value = '';
+  const handleGoogleLogin = () => {
+    window.location.href = `${BACKEND_URL}/api/auth/google`;
   };
 
   return (
-    <div className="login-page">
-      {/* 왼쪽: 배경 이미지 영역 */}
-      <div
-        className="login-bg"
-        style={bgImage ? { backgroundImage: `url(${bgImage})` } : {}}
-      >
-        {!bgImage && (
-          <div className="login-bg-placeholder">
-            <div className="login-bg-icon">🏫</div>
-            <p>학생 평가 관리 시스템</p>
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--bg-tertiary)',
+    }}>
+      <div style={{
+        background: 'white',
+        borderRadius: '16px',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+        padding: '40px',
+        width: '360px',
+      }}>
+        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
+          <div style={{ fontSize: '40px', marginBottom: '8px' }}>🏫</div>
+          <h1 style={{ margin: 0, fontSize: '22px', fontWeight: 700, color: 'var(--text-primary)' }}>학생 평가 관리</h1>
+          <p style={{ margin: '6px 0 0', fontSize: '13px', color: 'var(--text-secondary)' }}>로그인이 필요합니다</p>
+        </div>
+
+        {/* 구글 로그인 버튼 */}
+        <button
+          onClick={handleGoogleLogin}
+          style={{
+            width: '100%',
+            padding: '12px',
+            border: '1px solid var(--border-light)',
+            borderRadius: '10px',
+            background: 'white',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: '10px',
+            fontSize: '14px',
+            fontWeight: 600,
+            color: 'var(--text-primary)',
+            marginBottom: '20px',
+            transition: 'var(--transition)',
+            fontFamily: 'inherit',
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-secondary)'}
+          onMouseLeave={e => e.currentTarget.style.background = 'white'}
+        >
+          <svg width="18" height="18" viewBox="0 0 48 48">
+            <path fill="#FFC107" d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-1.341-.138-2.65-.389-3.917z"/>
+            <path fill="#FF3D00" d="M6.306 14.691l6.571 4.819C14.655 15.108 18.961 12 24 12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 16.318 4 9.656 8.337 6.306 14.691z"/>
+            <path fill="#4CAF50" d="M24 44c5.166 0 9.86-1.977 13.409-5.192l-6.19-5.238A11.91 11.91 0 0124 36c-5.202 0-9.619-3.317-11.283-7.946l-6.522 5.025C9.505 39.556 16.227 44 24 44z"/>
+            <path fill="#1976D2" d="M43.611 20.083H42V20H24v8h11.303a12.04 12.04 0 01-4.087 5.571l.003-.002 6.19 5.238C36.971 39.205 44 34 44 24c0-1.341-.138-2.65-.389-3.917z"/>
+          </svg>
+          Google로 로그인
+        </button>
+
+        {/* 구분선 */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+          <div style={{ flex: 1, height: '1px', background: 'var(--border-light)' }}/>
+          <span style={{ fontSize: '12px', color: 'var(--text-tertiary)' }}>또는</span>
+          <div style={{ flex: 1, height: '1px', background: 'var(--border-light)' }}/>
+        </div>
+
+        {/* 기존 로그인 */}
+        <form onSubmit={handleLogin}>
+          <div style={{ marginBottom: '14px' }}>
+            <input
+              className="input"
+              type="text"
+              placeholder="아이디"
+              value={username}
+              onChange={e => setUsername(e.target.value)}
+              style={{ width: '100%' }}
+              required
+            />
           </div>
-        )}
-        {/* 배경 이미지 업로드 버튼 */}
-        <div className="login-bg-controls">
-          <button className="bg-ctrl-btn" onClick={() => fileRef.current.click()}>
-            📷 배경 변경
-          </button>
-          {bgImage && (
-            <button className="bg-ctrl-btn bg-ctrl-remove" onClick={handleBgRemove}>
-              ✕ 제거
-            </button>
+          <div style={{ marginBottom: '20px' }}>
+            <input
+              className="input"
+              type="password"
+              placeholder="비밀번호"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              style={{ width: '100%' }}
+              required
+            />
+          </div>
+          {error && (
+            <div style={{ marginBottom: '16px', padding: '10px 14px', background: '#fee2e2', borderRadius: '8px', fontSize: '13px', color: '#dc2626' }}>
+              {error}
+            </div>
           )}
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/*"
-            style={{ display: 'none' }}
-            onChange={handleBgChange}
-          />
-        </div>
-      </div>
-
-      {/* 오른쪽: 로그인 폼 */}
-      <div className="login-panel">
-        <div className="login-form-wrap">
-          <div className="login-logo">📚</div>
-          <h1 className="login-title">학생 평가 관리</h1>
-          <p className="login-subtitle">선생님 계정으로 로그인하세요</p>
-
-          <form onSubmit={handleSubmit} className="login-form">
-            <div className="login-field">
-              <label className="login-label">아이디</label>
-              <input
-                className="login-input"
-                type="text"
-                placeholder="아이디를 입력하세요"
-                value={form.username}
-                onChange={e => setForm({ ...form, username: e.target.value })}
-                required
-                autoFocus
-              />
-            </div>
-            <div className="login-field">
-              <label className="login-label">비밀번호</label>
-              <input
-                className="login-input"
-                type="password"
-                placeholder="비밀번호를 입력하세요"
-                value={form.password}
-                onChange={e => setForm({ ...form, password: e.target.value })}
-                required
-              />
-            </div>
-            {error && <div className="login-error">{error}</div>}
-            <button type="submit" className="login-btn" disabled={loading}>
-              {loading ? '로그인 중...' : '로그인'}
-            </button>
-          </form>
-        </div>
+          <button type="submit" className="btn btn-primary" style={{ width: '100%' }} disabled={loading}>
+            {loading ? '로그인 중...' : '로그인'}
+          </button>
+        </form>
       </div>
     </div>
   );
 }
-
-export default Login;

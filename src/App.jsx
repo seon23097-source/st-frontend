@@ -4,6 +4,7 @@ import Setup from './components/Setup';
 import Login from './components/Login';
 import InitialSetup from './components/InitialSetup';
 import Dashboard from './components/Dashboard';
+import GoogleCallback from './components/GoogleCallback';
 import { authAPI, studentsAPI, isAuthenticated, saveTeacher } from './utils/api';
 
 // 🎨 테마 CSS 변수 주입
@@ -191,6 +192,7 @@ function AppContent() {
 
   return (
     <Routes>
+      <Route path="/auth/callback" element={<GoogleCallback onLogin={() => checkAuth()} />} />
       <Route path="/*" element={<Dashboard />} />
     </Routes>
   );
