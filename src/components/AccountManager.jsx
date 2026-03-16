@@ -27,9 +27,7 @@ function AccountManager({ teacher }) {
   // ── 기존 상태 ──
   const [teachers, setTeachers] = useState([]);
   const [showAddModal, setShowAddModal] = useState(false);
-  const [showPwModal, setShowPwModal]   = useState(false);
-  const [newTeacher, setNewTeacher]     = useState({ username: '', display_name: '', password: '' });
-  const [pwForm, setPwForm]             = useState({ current_password: '', new_password: '', confirm: '' });
+  const [newTeacher, setNewTeacher]     = useState({ google_email: '', display_name: '' });
   const [error, setError]               = useState('');
 
   // ── 학급 설정 상태 ──
@@ -116,12 +114,12 @@ function AccountManager({ teacher }) {
     }
   }
 
-  // 기존 계정 기능
+  // 계정 기능
   const handleAdd = async (e) => {
     e.preventDefault(); setError('');
     try {
       await teachersAPI.create(newTeacher);
-      setNewTeacher({ username: '', display_name: '', password: '' });
+      setNewTeacher({ google_email: '', display_name: '' });
       setShowAddModal(false);
       loadTeachers();
     } catch (err) { setError(err.message); }
@@ -131,20 +129,6 @@ function AccountManager({ teacher }) {
     if (!confirm(`${t.display_name} 계정을 삭제하시겠습니까?`)) return;
     try { await teachersAPI.delete(t.id); loadTeachers(); }
     catch (err) { alert(err.message); }
-  };
-
-  const handlePwChange = async (e) => {
-    e.preventDefault(); setError('');
-    if (pwForm.new_password !== pwForm.confirm) { setError('새 비밀번호가 일치하지 않습니다.'); return; }
-    try {
-      await teachersAPI.changePassword({
-        current_password: pwForm.current_password,
-        new_password: pwForm.new_password
-      });
-      alert('비밀번호가 변경되었습니다.');
-      setShowPwModal(false);
-      setPwForm({ current_password: '', new_password: '', confirm: '' });
-    } catch (err) { setError(err.message); }
   };
 
   // 현재 학급 표시
@@ -219,7 +203,7 @@ function AccountManager({ teacher }) {
       </div>
 
       {/* ══════════════════════════════════════════
-          ② 기존 계정 관리
+          ② 계정 관리
       ══════════════════════════════════════════ */}
       <div className="acm-card">
         <div className="acm-card-header-row">
@@ -227,21 +211,16 @@ function AccountManager({ teacher }) {
             <div className="acm-card-title">👤 계정 관리</div>
             <p className="acm-desc" style={{ margin: 0 }}>선생님 {teachers.length}명</p>
           </div>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button className="btn btn-outline" onClick={() => { setError(''); setShowPwModal(true); }}>
-              🔑 비밀번호 변경
-            </button>
-            <button className="btn btn-primary" onClick={() => { setError(''); setShowAddModal(true); }}>
-              + 계정 추가
-            </button>
-          </div>
+          <button className="btn btn-primary" onClick={() => { setError(''); setShowAddModal(true); }}>
+            + 계정 추가
+          </button>
         </div>
 
         <div className="student-table-wrap">
           <table className="student-table">
             <thead>
               <tr>
-                <th>아이디</th>
+                <th>구글 이메일</th>
                 <th>이름</th>
                 <th>권한</th>
                 <th>생성일</th>
@@ -251,7 +230,7 @@ function AccountManager({ teacher }) {
             <tbody>
               {teachers.map(t => (
                 <tr key={t.id}>
-                  <td>{t.username}</td>
+                  <td>{t.google_email || '-'}</td>
                   <td><strong>{t.display_name}</strong></td>
                   <td>{t.is_admin ? '🔑 관리자' : '👤 선생님'}</td>
                   <td className="td-date">{String(t.created_at).substring(0, 10)}</td>
@@ -292,10 +271,10 @@ function AccountManager({ teacher }) {
             </div>
             <form onSubmit={handleAdd} className="modal-form">
               <div className="form-group">
-                <label className="label">아이디</label>
-                <input className="input" type="text" placeholder="예: teacher2"
-                  value={newTeacher.username}
-                  onChange={e => setNewTeacher({ ...newTeacher, username: e.target.value })}
+                <label className="label">구글 이메일</label>
+                <input className="input" type="email" placeholder="예: teacher@gmail.com"
+                  value={newTeacher.google_email}
+                  onChange={e => setNewTeacher({ ...newTeacher, google_email: e.target.value })}
                   required autoFocus />
               </div>
               <div className="form-group">
@@ -305,57 +284,10 @@ function AccountManager({ teacher }) {
                   onChange={e => setNewTeacher({ ...newTeacher, display_name: e.target.value })}
                   required />
               </div>
-              <div className="form-group">
-                <label className="label">초기 비밀번호</label>
-                <input className="input" type="password"
-                  value={newTeacher.password}
-                  onChange={e => setNewTeacher({ ...newTeacher, password: e.target.value })}
-                  required />
-              </div>
               {error && <p className="error-message">{error}</p>}
               <div className="modal-actions">
                 <button type="button" className="btn btn-outline" onClick={() => setShowAddModal(false)}>취소</button>
                 <button type="submit" className="btn btn-primary">추가</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── 비밀번호 변경 모달 ── */}
-      {showPwModal && (
-        <div className="modal-overlay" onClick={() => setShowPwModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()}>
-            <div className="modal-header">
-              <h3>비밀번호 변경</h3>
-              <button className="modal-close" onClick={() => setShowPwModal(false)}>×</button>
-            </div>
-            <form onSubmit={handlePwChange} className="modal-form">
-              <div className="form-group">
-                <label className="label">현재 비밀번호</label>
-                <input className="input" type="password"
-                  value={pwForm.current_password}
-                  onChange={e => setPwForm({ ...pwForm, current_password: e.target.value })}
-                  required autoFocus />
-              </div>
-              <div className="form-group">
-                <label className="label">새 비밀번호</label>
-                <input className="input" type="password"
-                  value={pwForm.new_password}
-                  onChange={e => setPwForm({ ...pwForm, new_password: e.target.value })}
-                  required />
-              </div>
-              <div className="form-group">
-                <label className="label">새 비밀번호 확인</label>
-                <input className="input" type="password"
-                  value={pwForm.confirm}
-                  onChange={e => setPwForm({ ...pwForm, confirm: e.target.value })}
-                  required />
-              </div>
-              {error && <p className="error-message">{error}</p>}
-              <div className="modal-actions">
-                <button type="button" className="btn btn-outline" onClick={() => setShowPwModal(false)}>취소</button>
-                <button type="submit" className="btn btn-primary">변경</button>
               </div>
             </form>
           </div>
