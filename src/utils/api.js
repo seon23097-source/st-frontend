@@ -1,180 +1,222 @@
+import axios from 'axios';
+
 const API_BASE = 'https://st.looool.xyz/api';
 
-// 토큰 관리
-export const saveToken = (token) => localStorage.setItem('auth_token', token);
-export const getToken = () => localStorage.getItem('auth_token');
-export const removeToken = () => localStorage.removeItem('auth_token');
-export const isAuthenticated = () => !!getToken();
+// ── 토큰 관리 ─────────────────────────────────────────────
+export const saveToken    = (token)  => localStorage.setItem('auth_token', token);
+export const getToken     = ()       => localStorage.getItem('auth_token');
+export const removeToken  = ()       => localStorage.removeItem('auth_token');
+export const isAuthenticated = ()    => !!getToken();
 
-// 교사 정보 관리
-export const saveTeacher = (teacher) => localStorage.setItem('teacher', JSON.stringify(teacher));
-export const getTeacher = () => {
-  try { return JSON.parse(localStorage.getItem('teacher')); } catch { return null; }
-};
-export const removeTeacher = () => localStorage.removeItem('teacher');
+// ── 교사 정보 관리 ─────────────────────────────────────────
+export const saveTeacher  = (t) => localStorage.setItem('teacher', JSON.stringify(t));
+export const getTeacher   = () => { try { return JSON.parse(localStorage.getItem('teacher') || 'null'); } catch { return null; } };
+export const removeTeacher = ()  => localStorage.removeItem('teacher');
 
-// 학년도 계산 (3월 기준)
+// ── 학년도 계산 (3월 기준) ─────────────────────────────────
 export function currentSchoolYear() {
-  const stored = parseInt(localStorage.getItem('classYear'), 10);
+  const stored = parseInt(localStorage.getItem('classYear') || '', 10);
   if (stored && !isNaN(stored)) return stored;
   const now = new Date();
   return now.getMonth() >= 2 ? now.getFullYear() : now.getFullYear() - 1;
 }
 
-// API 공통 호출
-const apiCall = async (endpoint, options = {}) => {
+// ── axios 인스턴스 ─────────────────────────────────────────
+const api = axios.create({ baseURL: API_BASE });
+
+api.interceptors.request.use(config => {
   const token = getToken();
-  const config = {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token && { Authorization: `Bearer ${token}` }),
-      ...options.headers,
-    },
-  };
-  const response = await fetch(`${API_BASE}${endpoint}`, config);
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ error: '알 수 없는 오류' }));
-    throw new Error(error.error || '요청 실패');
-  }
-  return response.json();
-};
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
 
-// Auth API
+api.interceptors.response.use(
+  res => res.data,
+  err => Promise.reject(new Error(err.response?.data?.error || err.message || '요청 실패')),
+);
+
+// ── Auth API ───────────────────────────────────────────────
 export const authAPI = {
-  checkSetup: () => apiCall('/auth/check'),
-  setup: (data) => apiCall('/auth/setup', { method: 'POST', body: JSON.stringify(data) }),
-  login: (username, password) => apiCall('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
-  me: () => apiCall('/auth/me'),
+  checkSetup: () => api.get('/auth/check'),
+  setup: (data) => api.post('/auth/setup', data),
+  login: (username, password) => api.post('/auth/login', { username, password }),
+  me: () => api.get('/auth/me'),
 };
 
-// Teachers API
+// ── Teachers API ───────────────────────────────────────────
 export const teachersAPI = {
-  getAll: () => apiCall('/teachers'),
-  create: (teacher) => apiCall('/teachers', { method: 'POST', body: JSON.stringify(teacher) }),
-  delete: (id) => apiCall(`/teachers/${id}`, { method: 'DELETE' }),
-  changePassword: (data) => apiCall('/teachers/password', { method: 'PUT', body: JSON.stringify(data) }),
+  getAll: () => api.get('/teachers'),
+  create: (data) => api.post('/teachers', data),
+  delete: (id) => api.delete(`/teachers/${id}`),
+  changePassword: (data) => api.patch('/teachers/password', data),
 };
 
-// Students API
+// ── Students API ───────────────────────────────────────────
 export const studentsAPI = {
-  getCount: (year) => apiCall(`/students/count?year=${year || currentSchoolYear()}`),
-  getAll: (year, includeInactive = false) => apiCall(`/students?year=${year || currentSchoolYear()}&includeInactive=${includeInactive}`),
-  bulkCreate: (students, year) => apiCall('/students/bulk', { method: 'POST', body: JSON.stringify({ students, school_year: year || currentSchoolYear() }) }),
-  create: (student, year) => apiCall('/students', { method: 'POST', body: JSON.stringify({ ...student, school_year: year || currentSchoolYear() }) }),
-  update: (id, data) => apiCall(`/students/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  deactivate: (id) => apiCall(`/students/${id}/deactivate`, { method: 'PATCH' }),
-  activate: (id) => apiCall(`/students/${id}/activate`, { method: 'PATCH' }),
-  remove: (id, year) => apiCall(`/students/${id}?year=${year || currentSchoolYear()}`, { method: 'DELETE' }),
-  delete: (id, year) => apiCall(`/students/${id}?year=${year || currentSchoolYear()}`, { method: 'DELETE' }),
+  getCount: (year) =>
+    api.get('/students/count', { params: { year: year || currentSchoolYear() } }),
+  getAll: (year, includeInactive = false) =>
+    api.get('/students', { params: { year: year || currentSchoolYear(), includeInactive } }),
+  bulkCreate: (students, year) =>
+    api.post('/students/bulk', { students, school_year: year || currentSchoolYear() }),
+  create: (student, year) =>
+    api.post('/students', { ...student, school_year: year || currentSchoolYear() }),
+  update: (id, data) => api.put(`/students/${id}`, data),
+  deactivate: (id) => api.patch(`/students/${id}/deactivate`),
+  activate:   (id) => api.patch(`/students/${id}/activate`),
+  delete: (id, year) =>
+    api.delete(`/students/${id}`, { params: { year: year || currentSchoolYear() } }),
+  remove: (id, year) =>
+    api.delete(`/students/${id}`, { params: { year: year || currentSchoolYear() } }),
 };
 
-// Categories API
+// ── Categories API ─────────────────────────────────────────
 export const categoriesAPI = {
-  getAll: (year) => apiCall(`/categories?year=${year || currentSchoolYear()}`),
-  create: (category, year) => apiCall('/categories', { method: 'POST', body: JSON.stringify({ ...category, school_year: year || currentSchoolYear() }) }),
-  update: (id, data) => apiCall(`/categories/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  delete: (id) => apiCall(`/categories/${id}`, { method: 'DELETE' }),
+  getAll: (year) =>
+    api.get('/categories', { params: { year: year || currentSchoolYear() } }),
+  create: (data, year) =>
+    api.post('/categories', { ...data, school_year: year || currentSchoolYear() }),
+  update: (id, data) => api.put(`/categories/${id}`, data),
+  delete: (id) => api.delete(`/categories/${id}`),
 };
 
-// Evaluations API
+// ── Evaluations API ────────────────────────────────────────
 export const evaluationsAPI = {
-  getByCategory: (categoryId, year) => apiCall(`/evaluations/category/${categoryId}?year=${year || currentSchoolYear()}`),
-  getByStudent: (studentId, year) => apiCall(`/evaluations/student/${studentId}?year=${year || currentSchoolYear()}`),
-  create: (evaluation, year) => apiCall('/evaluations', { method: 'POST', body: JSON.stringify({ ...evaluation, school_year: year || currentSchoolYear() }) }),
-  update: (id, data) => apiCall(`/evaluations/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
-  delete: (id) => apiCall(`/evaluations/${id}`, { method: 'DELETE' }),
-  deleteAllByCategory: (categoryId, year) => apiCall(`/evaluations/category/${categoryId}/all?year=${year || currentSchoolYear()}`, { method: 'DELETE' }),
-  getGradeSelections: (year) => apiCall(`/grade/selections?year=${year || currentSchoolYear()}`),
-  saveGradeSelections: (selections, year) => apiCall('/grade/selections', { method: 'PUT', body: JSON.stringify({ selections, year: year || currentSchoolYear() }) }),
+  getByCategory: (categoryId, year) =>
+    api.get(`/evaluations/category/${categoryId}`, { params: { year: year || currentSchoolYear() } }),
+  getByStudent: (studentId, year) =>
+    api.get(`/evaluations/student/${studentId}`, { params: { year: year || currentSchoolYear() } }),
+  create: (data, year) =>
+    api.post('/evaluations', { ...data, school_year: year || currentSchoolYear() }),
+  update: (id, data) => api.put(`/evaluations/${id}`, data),
+  delete: (id) => api.delete(`/evaluations/${id}`),
+  deleteAllByCategory: (categoryId, year) =>
+    api.delete(`/evaluations/category/${categoryId}/all`, { params: { year: year || currentSchoolYear() } }),
+  getGradeSelections: (year) =>
+    api.get('/grade/selections', { params: { year: year || currentSchoolYear() } }),
+  saveGradeSelections: (selections, year) =>
+    api.put('/grade/selections', { selections, year: year || currentSchoolYear() }),
 };
 
-// Checklist API
-export const checklistAPI = {
-  getTopics: (year) => apiCall(`/checklist/topics?year=${year || currentSchoolYear()}`),
-  createTopic: (name, year) => apiCall('/checklist/topics', { method: 'POST', body: JSON.stringify({ name, school_year: year || currentSchoolYear() }) }),
-  toggleTopic: (id) => apiCall(`/checklist/topics/${id}/toggle`, { method: 'PATCH' }),
-  deleteTopic: (id) => apiCall(`/checklist/topics/${id}`, { method: 'DELETE' }),
-  getItems: (topicId) => apiCall(`/checklist/topics/${topicId}/items`),
-  createItem: (topic_id, item_name) => apiCall('/checklist/items', { method: 'POST', body: JSON.stringify({ topic_id, item_name }) }),
-  deleteItem: (id) => apiCall(`/checklist/items/${id}`, { method: 'DELETE' }),
-  getChecks: (topicId) => apiCall(`/checklist/checks/${topicId}`),
-  toggleCheck: (topic_id, item_id, student_id) => apiCall('/checklist/checks/toggle', { method: 'POST', body: JSON.stringify({ topic_id, item_id, student_id }) }),
-};
-
-// Seating API
-export const seatingAPI = {
-  getArrangements: (year) => apiCall(`/seating/arrangements?year=${year || currentSchoolYear()}`),
-  createArrangement: (title, year) => apiCall('/seating/arrangements', { method: 'POST', body: JSON.stringify({ title, school_year: year || currentSchoolYear() }) }),
-  getArrangementDetails: (id) => apiCall(`/seating/arrangements/${id}`),
-  deleteArrangement: (id) => apiCall(`/seating/arrangements/${id}`, { method: 'DELETE' }),
-  savePositions: (arrangementId, positions) => apiCall(`/seating/arrangements/${arrangementId}/positions`, { method: 'PUT', body: JSON.stringify({ positions }) }),
-  savePreferences: (arrangementId, preferences) => apiCall(`/seating/arrangements/${arrangementId}/preferences`, { method: 'PUT', body: JSON.stringify(preferences) }),
-  getHistory: (studentId) => apiCall(`/seating/history/${studentId}`),
-  getHistorySummary: (year) => apiCall(`/seating/history-summary?year=${year || currentSchoolYear()}`),
-  aiChat: (data) => apiCall('/seating/ai-chat', { method: 'POST', body: JSON.stringify(data) }),
-};
-
-// Attendance API
+// ── Attendance API ─────────────────────────────────────────
 export const attendanceAPI = {
-  getRecords: (year, month) => apiCall(`/attendance/records?year=${year || currentSchoolYear()}${month ? `&month=${month}` : ''}`),
-  saveRecord: (studentId, recordDate, attType, year) => apiCall('/attendance/records', {
-    method: 'PUT',
-    body: JSON.stringify({ records: [{ student_id: studentId, record_date: recordDate, att_type: attType }], year: year || currentSchoolYear() }),
-  }),
-  getNotes: (year, month) => apiCall(`/attendance/notes?year=${year || currentSchoolYear()}${month ? `&month=${month}` : ''}`),
-  saveNote: (studentId, recordDate, note, year) => apiCall('/attendance/notes', {
-    method: 'PUT',
-    body: JSON.stringify({ student_id: studentId, record_date: recordDate, note, year: year || currentSchoolYear() }),
-  }),
-  getEvents: (year) => apiCall(`/attendance/events?year=${year || currentSchoolYear()}`),
-  saveEvents: (events, year) => apiCall('/attendance/events', { method: 'PUT', body: JSON.stringify({ events, year: year || currentSchoolYear() }) }),
-  getSemester: (year) => apiCall(`/attendance/semester?year=${year || currentSchoolYear()}`),
-  saveSemester: (data, year) => apiCall('/attendance/semester', { method: 'PUT', body: JSON.stringify({ ...data, year: year || currentSchoolYear() }) }),
+  getRecords: (year, month) =>
+    api.get('/attendance/records', { params: { year: year || currentSchoolYear(), month } }),
+  saveRecord: (studentId, recordDate, attType, year) =>
+    api.put('/attendance/records', {
+      records: [{ student_id: studentId, record_date: recordDate, att_type: attType }],
+      year: year || currentSchoolYear(),
+    }),
+  getNotes: (year, month) =>
+    api.get('/attendance/notes', { params: { year: year || currentSchoolYear(), month } }),
+  saveNote: (studentId, recordDate, note, year) =>
+    api.put('/attendance/notes', { student_id: studentId, record_date: recordDate, note, year: year || currentSchoolYear() }),
+  getEvents: (year) =>
+    api.get('/attendance/events', { params: { year: year || currentSchoolYear() } }),
+  saveEvents: (events, year) =>
+    api.put('/attendance/events', { events, year: year || currentSchoolYear() }),
+  getSemester: (year) =>
+    api.get('/attendance/semester', { params: { year: year || currentSchoolYear() } }),
+  saveSemester: (data, year) =>
+    api.put('/attendance/semester', { ...data, year: year || currentSchoolYear() }),
 };
 
-// Behavior API
+// ── Checklist API ──────────────────────────────────────────
+export const checklistAPI = {
+  getTopics: (year) =>
+    api.get('/checklist/topics', { params: { year: year || currentSchoolYear() } }),
+  createTopic: (name, year) =>
+    api.post('/checklist/topics', { name, school_year: year || currentSchoolYear() }),
+  toggleTopic: (id) => api.patch(`/checklist/topics/${id}/toggle`),
+  deleteTopic: (id) => api.delete(`/checklist/topics/${id}`),
+  getItems: (topicId) => api.get(`/checklist/topics/${topicId}/items`),
+  createItem: (topic_id, item_name) => api.post('/checklist/items', { topic_id, item_name }),
+  deleteItem: (id) => api.delete(`/checklist/items/${id}`),
+  getChecks: (topicId) => api.get(`/checklist/checks/${topicId}`),
+  toggleCheck: (topic_id, item_id, student_id) =>
+    api.post('/checklist/checks/toggle', { topic_id, item_id, student_id }),
+};
+
+// ── Seating API ────────────────────────────────────────────
+export const seatingAPI = {
+  getArrangements: (year) =>
+    api.get('/seating/arrangements', { params: { year: year || currentSchoolYear() } }),
+  createArrangement: (title, year) =>
+    api.post('/seating/arrangements', { title, school_year: year || currentSchoolYear() }),
+  getArrangementDetails: (id) => api.get(`/seating/arrangements/${id}`),
+  deleteArrangement: (id) => api.delete(`/seating/arrangements/${id}`),
+  savePositions: (id, positions) =>
+    api.put(`/seating/arrangements/${id}/positions`, { positions }),
+  savePreferences: (id, prefs) =>
+    api.put(`/seating/arrangements/${id}/preferences`, prefs),
+  getHistory: (studentId) => api.get(`/seating/history/${studentId}`),
+  getHistorySummary: (year) =>
+    api.get('/seating/history-summary', { params: { year: year || currentSchoolYear() } }),
+  aiChat: (data) =>
+    api.post('/seating/ai-chat', { ...data, year: data.year || currentSchoolYear() }),
+};
+
+// ── Behavior API ───────────────────────────────────────────
 export const behaviorAPI = {
-  getLogs: (year, studentId) => apiCall(`/behavior/logs?year=${year || currentSchoolYear()}${studentId ? `&studentId=${studentId}` : ''}`),
-  createLog: (data, year) => apiCall('/behavior/logs', { method: 'POST', body: JSON.stringify({ ...data, year: year || currentSchoolYear() }) }),
-  updateLog: (id, content) => apiCall(`/behavior/logs/${id}`, { method: 'PUT', body: JSON.stringify({ content }) }),
-  deleteLog: (id) => apiCall(`/behavior/logs/${id}`, { method: 'DELETE' }),
-  getChecklist: (studentId, year) => apiCall(`/behavior/checklist/${studentId}?year=${year || currentSchoolYear()}`),
-  saveChecklist: (studentId, data, year) => apiCall(`/behavior/checklist/${studentId}`, { method: 'PUT', body: JSON.stringify({ ...data, year: year || currentSchoolYear() }) }),
+  getLogs: (year, studentId) =>
+    api.get('/behavior/logs', { params: { year: year || currentSchoolYear(), studentId } }),
+  createLog: (data, year) =>
+    api.post('/behavior/logs', { ...data, year: year || currentSchoolYear() }),
+  updateLog: (id, content) => api.put(`/behavior/logs/${id}`, { content }),
+  deleteLog: (id) => api.delete(`/behavior/logs/${id}`),
+  getChecklist: (studentId, year) =>
+    api.get(`/behavior/checklist/${studentId}`, { params: { year: year || currentSchoolYear() } }),
+  saveChecklist: (studentId, data, year) =>
+    api.put(`/behavior/checklist/${studentId}`, { ...data, year: year || currentSchoolYear() }),
 };
 
-// Grade API
+// ── Grade API ──────────────────────────────────────────────
 export const gradeAPI = {
-  getResults: (year) => apiCall(`/grade/results?year=${year || currentSchoolYear()}`),
-  updateResult: (id, generated_text) => apiCall(`/grade/results/${id}`, { method: 'PUT', body: JSON.stringify({ generated_text }) }),
-  generate: (data) => apiCall('/grade/generate', { method: 'POST', body: JSON.stringify({ ...data, year: data.year || currentSchoolYear() }) }),
+  getResults: (year) =>
+    api.get('/grade/results', { params: { year: year || currentSchoolYear() } }),
+  updateResult: (id, generated_text) =>
+    api.put(`/grade/results/${id}`, { generated_text }),
+  generate: (data) =>
+    api.post('/grade/generate', { ...data, year: data.year || currentSchoolYear() }),
 };
 
-// Album API
+// ── Album API ──────────────────────────────────────────────
 export const albumAPI = {
-  list: () => apiCall('/album'),
-  upload: async (file) => {
-    const token = getToken();
+  list: () => api.get('/album'),
+  upload: (file) => {
     const formData = new FormData();
     formData.append('photo', file);
-    const response = await fetch(`${API_BASE}/album/upload`, {
-      method: 'POST',
-      headers: { ...(token && { Authorization: `Bearer ${token}` }) },
-      body: formData,
+    return api.post('/album/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
     });
-    if (!response.ok) throw new Error('업로드 실패');
-    return response.json();
   },
-  delete: (filename) => apiCall(`/album/${encodeURIComponent(filename)}`, { method: 'DELETE' }),
+  delete: (filename) => api.delete(`/album/${encodeURIComponent(filename)}`),
 };
 
-// Presentations API
+// ── Presentations API ──────────────────────────────────────
 export const presentationAPI = {
-  getDaily: (date) => apiCall(`/presentations/daily?date=${date || new Date().toISOString().split('T')[0]}`),
-  increment: (studentId, date, arrangementId) => apiCall('/presentations/increment', { method: 'POST', body: JSON.stringify({ student_id: studentId, date, arrangement_id: arrangementId }) }),
-  decrement: (studentId, date) => apiCall('/presentations/decrement', { method: 'POST', body: JSON.stringify({ student_id: studentId, date }) }),
-  toggleSpecial: (studentId, date, arrangementId) => apiCall('/presentations/toggle-special', { method: 'POST', body: JSON.stringify({ student_id: studentId, date, arrangement_id: arrangementId }) }),
-  saveDaily: (entries) => apiCall('/presentations/daily', { method: 'PUT', body: JSON.stringify({ entries }) }),
-  getWeekly: () => apiCall('/presentations/weekly'),
-  getStats: () => apiCall('/presentations/stats'),
+  getDaily: (date) =>
+    api.get('/presentations/daily', { params: { date } }),
+  increment: (studentId, date, arrangementId) =>
+    api.post('/presentations/increment', { student_id: studentId, date, arrangement_id: arrangementId }),
+  decrement: (studentId, date) =>
+    api.post('/presentations/decrement', { student_id: studentId, date }),
+  toggleSpecial: (studentId, date, arrangementId) =>
+    api.post('/presentations/toggle-special', { student_id: studentId, date, arrangement_id: arrangementId }),
+  saveDaily: (entries) => api.put('/presentations/daily', { entries }),
+  getWeekly: () => api.get('/presentations/weekly'),
+  getStats:  () => api.get('/presentations/stats'),
+};
+
+// ── Today API ──────────────────────────────────────────────
+export const todayAPI = {
+  getMemo: (date) => apiCall(`/today/memo?date=${date}`),
+  saveMemo: (date, content) => apiCall('/today/memo', { method: 'POST', body: JSON.stringify({ date, content }) }),
+  getTodos: (date) => apiCall(`/today/todos?date=${date}`),
+  addTodo: (date, text) => apiCall('/today/todos', { method: 'POST', body: JSON.stringify({ date, text }) }),
+  toggleTodo: (id) => apiCall(`/today/todos/${id}/toggle`, { method: 'PATCH' }),
+  deleteTodo: (id) => apiCall(`/today/todos/${id}`, { method: 'DELETE' }),
+  carryOver: (from_date, to_date) => apiCall('/today/todos/carry-over', { method: 'POST', body: JSON.stringify({ from_date, to_date }) }),
+  getNotice: (date) => apiCall(`/today/notice?date=${date}`),
+  saveNotice: (date, content) => apiCall('/today/notice', { method: 'POST', body: JSON.stringify({ date, content }) }),
 };
