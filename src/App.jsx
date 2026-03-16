@@ -158,7 +158,7 @@ function AppContent() {
         return;
       }
       try {
-        const { teacher } = await authAPI.me();
+        const teacher = await authAPI.me();
         saveTeacher(teacher);
         const countData = await studentsAPI.getCount();
         if (countData.count === 0) {
