@@ -147,6 +147,13 @@ function AppContent() {
   }, []);
 
   const checkAuth = async () => {
+    // 구글 콜백 URL 감지 - 다른 처리보다 먼저
+    const href = window.location.href;
+    if (href.includes('/auth/callback') && href.includes('token=')) {
+      setAuthState('google-callback');
+      return;
+    }
+
     try {
       const { hasPassword } = await authAPI.checkSetup();
       if (!hasPassword) {
@@ -189,6 +196,7 @@ function AppContent() {
   if (authState === 'setup') return <Setup onSetupComplete={() => setAuthState('initial-setup')} />;
   if (authState === 'login') return <Login onLogin={() => checkAuth()} />;
   if (authState === 'initial-setup') return <InitialSetup onComplete={() => setAuthState('ready')} />;
+  if (authState === 'google-callback') return <GoogleCallback onLogin={() => checkAuth()} />;
 
   return (
     <Routes>
