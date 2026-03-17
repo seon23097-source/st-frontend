@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { albumAPI } from '../utils/api';
 
+const BACKEND = 'https://st.looool.xyz';
+
 export default function Album() {
   const [photos,       setPhotos]       = useState([]);
   const [loading,      setLoading]      = useState(true);
@@ -94,7 +96,7 @@ export default function Album() {
                   onMouseEnter={e=>e.currentTarget.style.transform='translateY(-2px)'}
                   onMouseLeave={e=>e.currentTarget.style.transform='translateY(0)'}>
                   <div style={{aspectRatio:'4/3',overflow:'hidden',background:'var(--bg-secondary)'}}>
-                    <img src={photo.url} alt={photo.filename}
+                    <img src={BACKEND + photo.url} alt={photo.filename}
                       style={{width:'100%',height:'100%',objectFit:'cover'}}
                       loading="lazy"
                       onError={e=>{ e.target.src=''; e.target.style.display='none'; }}/>
@@ -122,7 +124,7 @@ export default function Album() {
             <div style={{padding:'12px 20px',display:'flex',justifyContent:'space-between',alignItems:'center',borderBottom:'1px solid var(--border-light)'}}>
               <span style={{fontSize:'14px',fontWeight:600,color:'var(--text-primary)',maxWidth:'400px',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{selectedPhoto.filename}</span>
               <div style={{display:'flex',gap:'8px'}}>
-                <a href={selectedPhoto.url} download={selectedPhoto.filename} target="_blank" rel="noreferrer"
+                <a href={BACKEND + selectedPhoto.url} download={selectedPhoto.filename} target="_blank" rel="noreferrer"
                   className="btn btn-outline btn-sm">다운로드</a>
                 <button className="btn btn-sm" style={{background:'var(--danger)',color:'white',border:'none'}}
                   onClick={()=>handleDelete(selectedPhoto.filename)}>삭제</button>
@@ -131,7 +133,7 @@ export default function Album() {
             </div>
             {/* 사진 */}
             <div style={{flex:1,overflow:'auto',display:'flex',alignItems:'center',justifyContent:'center',background:'var(--bg-secondary)',padding:'16px'}}>
-              <img src={selectedPhoto.url} alt={selectedPhoto.filename}
+              <img src={BACKEND + selectedPhoto.url} alt={selectedPhoto.filename}
                 style={{maxWidth:'100%',maxHeight:'70vh',objectFit:'contain',borderRadius:'8px'}}/>
             </div>
           </div>
