@@ -5,7 +5,12 @@ import './Today.css';
 const DAY_KR = ['일', '월', '화', '수', '목', '금', '토'];
 const DAY_FULL = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
 
-function dateStr(d) { return d.toISOString().slice(0, 10); }
+function dateStr(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
 function parseDate(s) { const [y,m,d]=s.split('-').map(Number); return new Date(y,m-1,d); }
 function addDays(s, n) { const d=parseDate(s); d.setDate(d.getDate()+n); return dateStr(d); }
 
