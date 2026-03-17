@@ -116,10 +116,29 @@ function Checklist() {
   };
 
   const handleToggleCheck = async (itemId, studentId) => {
+    // 즉시 UI 업데이트 (optimistic update)
+    const current = getCheckValue(itemId, studentId);
+    const next = (current + 1) % 3;
+    setChecks(prev => {
+      const existing = prev.find(c => c.item_id === itemId && c.student_id === studentId);
+      if (existing) {
+        return prev.map(c => c.item_id === itemId && c.student_id === studentId ? {...c, check_value: next} : c);
+      } else {
+        return [...prev, { item_id: itemId, student_id: studentId, check_value: next }];
+      }
+    });
+    // 백그라운드에서 서버 저장
     try {
       await checklistAPI.toggleCheck(selectedTopic.id, itemId, studentId);
-      await loadTopicDetails(selectedTopic.id);
     } catch (error) {
+      // 실패 시 롤백
+      setChecks(prev => {
+        const existing = prev.find(c => c.item_id === itemId && c.student_id === studentId);
+        if (existing) {
+          return prev.map(c => c.item_id === itemId && c.student_id === studentId ? {...c, check_value: current} : c);
+        }
+        return prev.filter(c => !(c.item_id === itemId && c.student_id === studentId));
+      });
       alert('체크 실패: ' + error.message);
     }
   };
