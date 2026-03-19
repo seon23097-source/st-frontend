@@ -226,7 +226,7 @@ export default function BehaviorDevelopment() {
                                     const s=students.find(st=>st.id===id);
                                     return s?(
                                       <span key={id} style={{fontSize:'11px',background:'var(--primary-bg)',border:'1px solid var(--primary-light)',borderRadius:'10px',padding:'1px 6px',color:'var(--primary-dark)'}}>
-                                        {s.student_number}번 {s.name}
+                                        관련: {s.name}
                                       </span>
                                     ):null;
                                   })}
