@@ -92,7 +92,9 @@ function TodoList({ date }) {
   useEffect(() => {
     const prev = addDays(date, -1);
     const doCarryAndLoad = async () => {
-      try { await todayAPI.carryOver(prev, date); } catch {}
+      if (date === dateStr(new Date())) {  // ← 오늘 날짜일 때만
+        try { await todayAPI.carryOver(prev, date); } catch {}
+      }
       const data = await todayAPI.getTodos(date);
       setTodos(data);
       setLoading(false);
