@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+﻿import React, { useState, useEffect, useRef } from 'react';
 import { behaviorAPI, studentsAPI, currentSchoolYear } from '../utils/api';
 
 const OPT5  = ['', '매우부족', '부족', '보통', '양호', '매우우수'];
@@ -180,7 +180,7 @@ export default function BehaviorDevelopment() {
                       const s=students.find(st=>st.id===id);
                       return s?(
                         <span key={id} style={{background:'var(--primary-bg)',border:'1px solid var(--primary-light)',borderRadius:'16px',padding:'2px 8px',fontSize:'12px',color:'var(--primary-dark)',display:'inline-flex',alignItems:'center',gap:'4px'}}>
-                          {s.student_number}번 {s.name}
+                          관련: {s.name}
                           <button type="button" onClick={()=>setRelatedStudents(p=>p.filter(i=>i!==id))}
                             style={{background:'none',border:'none',cursor:'pointer',color:'var(--danger)',fontSize:'14px',lineHeight:1,padding:0}}>×</button>
                         </span>
