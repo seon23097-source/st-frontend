@@ -88,10 +88,12 @@ function TodoList({ date }) {
 
   useEffect(() => { load(); }, [load]);
 
-  // 날짜 바뀔 때 전날 미완료 자동 이월
+// 날짜 바뀔 때 전날 미완료 자동 이월
   useEffect(() => {
     const prev = addDays(date, -1);
-    todayAPI.carryOver(prev, date).catch(()=>{});
+    todayAPI.carryOver(prev, date)
+      .then(() => load())   // ← 이월 후 목록 새로고침
+      .catch(() => {});
   }, [date]);
 
   const add = async () => {
