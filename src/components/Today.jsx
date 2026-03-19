@@ -91,9 +91,13 @@ function TodoList({ date }) {
 // 날짜 바뀔 때 전날 미완료 자동 이월
   useEffect(() => {
     const prev = addDays(date, -1);
-    todayAPI.carryOver(prev, date)
-      .then(() => load())   // ← 이월 후 목록 새로고침
-      .catch(() => {});
+    const doCarryAndLoad = async () => {
+      try { await todayAPI.carryOver(prev, date); } catch {}
+      const data = await todayAPI.getTodos(date);
+      setTodos(data);
+      setLoading(false);
+    };
+    doCarryAndLoad();
   }, [date]);
 
   const add = async () => {
