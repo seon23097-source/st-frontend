@@ -373,9 +373,9 @@ function SeatingArrangement() {
                 <button className="btn btn-outline btn-sm" onClick={()=>setShowFrontModal(true)}>앞자리 설정</button>
                 <button className="btn btn-outline btn-sm" onClick={()=>setShowSeparateModal(true)}>분리/붙이기</button>
                 <button className="btn btn-outline btn-sm" onClick={()=>setShowAutoModal(true)}>자동 배치</button>
-                <button className="btn btn-outline btn-sm" onClick={()=>setShowAiPanel(p=>!p)}
-                  style={showAiPanel?{background:'var(--primary)',color:'white'}:{}}>
-                  🤖 AI 배치
+                <button className="btn btn-outline btn-sm" disabled
+                  style={{opacity:0.5, cursor:'not-allowed'}}>
+                  🤖 AI 배치 (개발중)
                 </button>
                 <button className="btn btn-outline btn-sm" onClick={()=>setShowFullScreen(true)}>전체화면</button>
                 <button className="btn btn-primary btn-sm" onClick={handleSavePositions}>저장</button>
