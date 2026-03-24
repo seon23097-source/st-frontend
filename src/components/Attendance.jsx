@@ -436,7 +436,12 @@ export default function Attendance() {
       {/* ── 상단 바 ── */}
       <div className="att-top-bar">
         <div className="att-top-center">
-          <button className="att-event-btn" onClick={()=>setShowEvt(true)}>📅 행사일 설정</button>
+          <button className="att-event-btn" onClick={()=>setShowEvt(true)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}>
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><circle cx="12" cy="16" r="1.5" fill="currentColor"/>
+            </svg>
+            행사일 설정
+          </button>
           {Object.keys(events).length>0&&(
             <span className="att-sem-chip" style={{background:'#fef3c7',color:'#92400e'}}>행사일 {Object.keys(events).length}일 등록됨</span>
           )}
@@ -446,7 +451,12 @@ export default function Attendance() {
           {semInfo.sem2  &&<span className="att-sem-chip sem2">2학기 {semInfo.sem2.start}~{semInfo.sem2.end}</span>}
           {semInfo.summer&&<span className="att-sem-chip summer">☀️ {semInfo.summer.days}일</span>}
           {semInfo.winter&&<span className="att-sem-chip winter">❄️ {semInfo.winter.days}일</span>}
-          <button className="att-semester-btn" onClick={()=>setShowSem(true)}>🗓 학기 설정</button>
+          <button className="att-semester-btn" onClick={()=>setShowSem(true)}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" style={{flexShrink:0}}>
+              <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><line x1="8" y1="15" x2="16" y2="15"/><line x1="8" y1="19" x2="12" y2="19"/>
+            </svg>
+            학기 설정
+          </button>
         </div>
       </div>
 
