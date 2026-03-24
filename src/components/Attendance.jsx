@@ -311,6 +311,7 @@ export default function Attendance() {
   const [checkedRows, setCheckedRows] = useState({});
   const [loading,     setLoading]     = useState(true);
   const [conflictInfo,setConflictInfo]= useState(null);
+  const [tooltip,     setTooltip]     = useState(null); // {text, x, y}
 
   const year = realYear(baseYear, month);
 
@@ -517,6 +518,9 @@ export default function Attendance() {
                     return (
                       <td key={d} className={`att-td-cell ${dis?'cell-disabled':''}`}
                         onClick={()=>{ if(!dis) cycleType(s.id,dkey); }}
+                        onMouseEnter={e=>{ if(!dis) setTooltip({text:`${s.student_number} ${s.name}`, x:e.clientX, y:e.clientY}); }}
+                        onMouseMove={e=>{ if(!dis&&tooltip) setTooltip(t=>t?{...t,x:e.clientX,y:e.clientY}:null); }}
+                        onMouseLeave={()=>setTooltip(null)}
                         style={!dis&&type?{background:tInfo.color+'33'}:{}}>
                         {dis
                           ? <span className="att-cell-dis-txt">
@@ -525,7 +529,6 @@ export default function Attendance() {
                             </span>
                           : type ? <span className="att-cell-badge" style={{background:tInfo.color}}>{tInfo.short}</span> : null
                         }
-                        {!dis&&<span className="att-cell-hover">{s.student_number} {s.name}</span>}
                       </td>
                     );
                   })}
@@ -615,6 +618,12 @@ export default function Attendance() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {tooltip&&(
+        <div className="att-tooltip-fixed" style={{left:tooltip.x+12,top:tooltip.y-30}}>
+          {tooltip.text}
         </div>
       )}
     </div>

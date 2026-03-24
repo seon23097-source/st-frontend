@@ -136,7 +136,6 @@ tbody tr:nth-child(even) .att-td-cell { background:var(--bg-secondary,#fafafa); 
   transition:filter .1s;
 }
 .att-td-cell:hover:not(.cell-disabled) { filter:brightness(.95); }
-.att-td-cell:hover .att-cell-hover { opacity:1; }
 
 /* 비활성화 셀 */
 .att-td-cell.cell-disabled {
@@ -149,18 +148,18 @@ tbody tr:nth-child(even) .att-td-cell { background:var(--bg-secondary,#fafafa); 
 
 .att-cell-badge {
   display:inline-flex; align-items:center; justify-content:center;
-  width:18px; height:18px; border-radius:4px;
-  color:#fff; font-size:10.5px; font-weight:700;
+  width:20px; height:20px; border-radius:5px;
+  color:#fff; font-size:11px; font-weight:800;
+  text-shadow:0 1px 2px rgba(0,0,0,.2);
 }
 
-/* hover 툴팁 */
-.att-cell-hover {
-  position:absolute; bottom:calc(100%+3px); left:50%; transform:translateX(-50%);
-  background:rgba(30,41,59,.92); color:#fff !important; font-size:10px;
-  white-space:nowrap; padding:3px 8px; border-radius:5px;
-  pointer-events:none; opacity:0; transition:opacity .15s; z-index:10;
-  font-weight:600; letter-spacing:.02em;
-  box-shadow:0 2px 6px rgba(0,0,0,.18);
+/* fixed 툴팁 (마우스 추적) */
+.att-tooltip-fixed {
+  position:fixed; z-index:9999;
+  background:rgba(15,23,42,.92); color:#fff; font-size:11px;
+  white-space:nowrap; padding:5px 10px; border-radius:6px;
+  pointer-events:none; font-weight:600;
+  box-shadow:0 3px 8px rgba(0,0,0,.22);
 }
 
 /* 범례 */
