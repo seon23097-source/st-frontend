@@ -622,7 +622,7 @@ export default function Attendance() {
       )}
 
       {tooltip&&(
-        <div className="att-tooltip-fixed" style={{left:tooltip.x+12,top:tooltip.y-30}}>
+        <div className="att-tooltip-fixed" style={{left:tooltip.x+12,top:tooltip.y-30,color:'#ffffff',background:'rgba(15,23,42,.92)'}}>
           {tooltip.text}
         </div>
       )}
