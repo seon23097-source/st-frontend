@@ -44,13 +44,15 @@ export default function BehaviorDevelopment() {
     } catch(e){ console.error(e); }
   };
 
-  // 현재 학생이 related_student_ids에 포함된 타 학생의 기록 (읽기전용)
-  const relatedLogs = selectedStudent
-    ? allLogs.filter(l => l.student_id !== selectedStudent.id && (l.related_student_ids||[]).includes(selectedStudent.id))
-    : [];
-  // 직접 기록 + 관련 기록을 날짜순 병합
-  const mergedLogs = [...logs.map(l=>({...l, _isRelated:false})), ...relatedLogs.map(l=>({...l, _isRelated:true}))]
-    .sort((a,b) => (b.log_date||'').localeCompare(a.log_date||''));
+  // "N번과 " 패턴으로 시작하는 기록 = 관련 기록 (백엔드가 자동 생성)
+  // 예: "2번과 테스트" → 원본은 2번 학생의 기록
+  const parseRelatedPrefix = (content) => {
+    const m = content?.match(/^(\d+)번과\s/);
+    if (!m) return null;
+    const num = parseInt(m[1]);
+    const origin = students.find(s => s.student_number === num);
+    return origin ? { studentNumber: num, student: origin, cleanContent: content.replace(/^\d+번과\s/, '') } : null;
+  };
 
   const [relatedStudents, setRelatedStudents] = useState([]); // 선택된 관련 학생 ids
 
@@ -100,13 +102,11 @@ export default function BehaviorDevelopment() {
 
   const updateCL = (key, val) => setChecklist(prev=>({...prev,[key]:val}));
 
-  // 학생별 최근 기록 미리보기 (직접 기록 + 관련 기록 포함)
+  // 학생별 최근 기록 미리보기
   const getRecentLog = (studentId) => {
-    const direct = allLogs.filter(l=>l.student_id===studentId);
-    const related = allLogs.filter(l=>l.student_id!==studentId && (l.related_student_ids||[]).includes(studentId));
-    const all = [...direct, ...related].sort((a,b)=>(b.log_date||'').localeCompare(a.log_date||''));
-    if(all.length===0) return null;
-    return all[0];
+    const sl = allLogs.filter(l=>l.student_id===studentId);
+    if(sl.length===0) return null;
+    return sl[0];
   };
 
   if(loading) return (
@@ -212,20 +212,19 @@ export default function BehaviorDevelopment() {
 
                 {/* 기록 목록 */}
                 <div style={{flex:1,overflowY:'auto',background:'white',borderRadius:'var(--radius-lg)',boxShadow:'var(--shadow-md)',padding:'8px'}}>
-                  {mergedLogs.length===0 ? (
+                  {logs.length===0 ? (
                     <div style={{textAlign:'center',padding:'40px',color:'var(--text-secondary)'}}>관찰 기록이 없습니다.</div>
                   ) : (
-                    mergedLogs.map(log=>{
-                      const isRelated = log._isRelated;
-                      const originStudent = isRelated ? students.find(st=>st.id===log.student_id) : null;
+                    logs.map(log=>{
+                      const related = parseRelatedPrefix(log.content);
                       return (
-                      <div key={`${log.id}${isRelated?'-rel':''}`} style={{
+                      <div key={log.id} style={{
                         padding:'12px 16px',borderBottom:'1px solid var(--border-light)',display:'flex',gap:'12px',alignItems:'flex-start',
-                        ...(isRelated ? {background:'#f0f4ff',borderLeft:'3px solid #93a3f8'} : {})
+                        ...(related ? {background:'#f0f4ff',borderLeft:'3px solid #93a3f8'} : {})
                       }}>
                         <div style={{fontSize:'12px',color:'var(--text-secondary)',whiteSpace:'nowrap',marginTop:'2px',minWidth:'80px'}}>{String(log.log_date).substring(0,10)}</div>
                         <div style={{flex:1}}>
-                          {!isRelated && editingLog===log.id ? (
+                          {!related && editingLog===log.id ? (
                             <div style={{display:'flex',gap:'8px'}}>
                               <input className="input" value={editContent} onChange={e=>setEditContent(e.target.value)}
                                 onKeyDown={e=>{ if(e.key==='Enter') handleUpdateLog(log.id); if(e.key==='Escape') setEditingLog(null); }}
@@ -235,14 +234,16 @@ export default function BehaviorDevelopment() {
                             </div>
                           ) : (
                             <div>
-                              {isRelated && originStudent && (
-                                <button onClick={()=>setSelectedStudent(originStudent)}
+                              {related && (
+                                <button onClick={()=>setSelectedStudent(related.student)}
                                   style={{display:'inline-flex',alignItems:'center',gap:'3px',fontSize:'11px',color:'#6366f1',background:'#e0e7ff',border:'1px solid #c7d2fe',borderRadius:'10px',padding:'1px 8px',cursor:'pointer',marginBottom:'4px',fontFamily:'inherit',fontWeight:600}}>
-                                  ↗ {originStudent.student_number}번 {originStudent.name}의 기록
+                                  ↗ {related.studentNumber}번 {related.student.name}의 기록
                                 </button>
                               )}
-                              <span style={{fontSize:'14px',color: isRelated ? 'var(--text-secondary)' : 'var(--text-primary)', display:'block'}}>{log.content}</span>
-                              {!isRelated && log.related_student_ids?.length>0&&(
+                              <span style={{fontSize:'14px',color: related ? 'var(--text-secondary)' : 'var(--text-primary)', display:'block'}}>
+                                {related ? related.cleanContent : log.content}
+                              </span>
+                              {!related && log.related_student_ids?.length>0&&(
                                 <div style={{marginTop:'4px',display:'flex',gap:'4px',flexWrap:'wrap'}}>
                                   {log.related_student_ids.map(id=>{
                                     const s=students.find(st=>st.id===id);
@@ -257,13 +258,15 @@ export default function BehaviorDevelopment() {
                             </div>
                           )}
                         </div>
-                        {!isRelated && (
+                        {!related ? (
                           <div style={{display:'flex',gap:'6px'}}>
                             <button style={{background:'none',border:'none',cursor:'pointer',fontSize:'12px',color:'var(--primary)'}}
                               onClick={()=>{ setEditingLog(log.id); setEditContent(log.content); }}>수정</button>
                             <button style={{background:'none',border:'none',cursor:'pointer',fontSize:'12px',color:'var(--danger)'}}
                               onClick={()=>handleDeleteLog(log.id)}>삭제</button>
                           </div>
+                        ) : (
+                          <span style={{fontSize:'10px',color:'#94a3b8',whiteSpace:'nowrap'}}>읽기전용</span>
                         )}
                       </div>
                       );
