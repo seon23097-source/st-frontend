@@ -67,7 +67,6 @@
   background:var(--bg-primary,#fff);
   border-radius:var(--radius-lg,14px);
   box-shadow:var(--shadow-md,0 2px 8px rgba(0,0,0,.07));
-  overflow:hidden;
 }
 .att-sheet-scroll { overflow-x:auto; }
 
@@ -105,7 +104,7 @@ thead th {
 /* 비활성 열 (행사일/방학) */
 .att-th-day.disabled-col { background:var(--bg-secondary,#f8f9fa); }
 .att-col-disabled-label {
-  font-size:10px; color:#ef4444; font-weight:700;
+  font-size:10px; color:#94a3b8; font-weight:700;
 }
 /* 선택된 날짜 열 강조 */
 .att-th-day.selected-col {
@@ -145,7 +144,7 @@ tbody tr:nth-child(even) .att-td-cell { background:var(--bg-secondary,#fafafa); 
   background:var(--bg-secondary,#f3f4f6) !important;
 }
 .att-cell-dis-txt {
-  font-size:10px; color:#ef4444; font-weight:700; opacity:.7;
+  font-size:10px; color:#94a3b8; font-weight:700; opacity:.7;
 }
 
 .att-cell-badge {
@@ -157,9 +156,11 @@ tbody tr:nth-child(even) .att-td-cell { background:var(--bg-secondary,#fafafa); 
 /* hover 툴팁 */
 .att-cell-hover {
   position:absolute; bottom:calc(100%+3px); left:50%; transform:translateX(-50%);
-  background:rgba(30,41,59,.82); color:#fff; font-size:10px;
-  white-space:nowrap; padding:2px 6px; border-radius:4px;
+  background:rgba(30,41,59,.92); color:#fff !important; font-size:10px;
+  white-space:nowrap; padding:3px 8px; border-radius:5px;
   pointer-events:none; opacity:0; transition:opacity .15s; z-index:10;
+  font-weight:600; letter-spacing:.02em;
+  box-shadow:0 2px 6px rgba(0,0,0,.18);
 }
 
 /* 범례 */

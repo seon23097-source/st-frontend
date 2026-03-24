@@ -489,7 +489,7 @@ export default function Attendance() {
                   const dis=!!evtVal||isVac;
                   return (
                     <th key={d} className={`att-th-day ${w===5?'fri':''} ${dis?'disabled-col':''} ${selectedDay===d?'selected-col':''}`}
-                      onClick={()=>{ setSelectedDay(prev=>prev===d?null:d); localStorage.setItem('att_ui_state',JSON.stringify({month,day:selectedDay===d?null:d})); }}
+                      onClick={()=>{ const newDay=selectedDay===d?null:d; setSelectedDay(newDay); localStorage.setItem('att_ui_state',JSON.stringify({month,day:newDay})); }}
                       style={{cursor:'pointer'}} title={evtVal?(typeof evtVal==='string'?evtVal:'행사일'):`${month}/${d}`}>
                       {isVac
                         ? <span className="att-col-disabled-label">{semInfo.summer&&dkey>=semInfo.summer.start&&dkey<=semInfo.summer.end?'여':'겨'}</span>
@@ -516,7 +516,7 @@ export default function Attendance() {
                     const tInfo=ABSENCE_TYPES.find(t=>t.key===type);
                     return (
                       <td key={d} className={`att-td-cell ${dis?'cell-disabled':''}`}
-                        onClick={()=>{ if(!dis){ cycleType(s.id,dkey); setSelectedDay(d); } }}
+                        onClick={()=>{ if(!dis) cycleType(s.id,dkey); }}
                         style={!dis&&type?{background:tInfo.color+'33'}:{}}>
                         {dis
                           ? <span className="att-cell-dis-txt">
