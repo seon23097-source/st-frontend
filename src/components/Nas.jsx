@@ -183,7 +183,11 @@ export default function Nas() {
     }
   };
 
+
   // ── 파일 업로드 ──
+
+  const CHUNK_SIZE = 50 * 1024 * 1024; // 50MB — Cloudflare 100MB 제한 대응
+
   const handleUpload = async (e) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
@@ -198,39 +202,79 @@ export default function Nas() {
 
     try {
       const linkData = await nasJSON(`/repos/${repoId}/upload-link?p=${encodeURIComponent(currentPath)}`);
+      // upload-link URL에서 upload-api URL 생성 (chunked용)
+      const uploadApiUrl = linkData.upload_url.replace('/upload-aj/', '/upload-api/').replace('/upload/', '/upload-api/');
 
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         setUploadFiles(prev => prev.map((f, j) => j === i ? { ...f, status: 'uploading' } : f));
 
         try {
-          await new Promise((resolve, reject) => {
-            const xhr = new XMLHttpRequest();
-            xhr.open('POST', linkData.upload_url);
-            xhr.setRequestHeader('Authorization', `Token ${linkData.token}`);
+          if (file.size <= CHUNK_SIZE) {
+            // 작은 파일: 일반 업로드
+            await new Promise((resolve, reject) => {
+              const xhr = new XMLHttpRequest();
+              xhr.open('POST', linkData.upload_url);
+              xhr.setRequestHeader('Authorization', `Token ${linkData.token}`);
+              xhr.upload.onprogress = (evt) => {
+                if (evt.lengthComputable) {
+                  const pct = Math.round((evt.loaded / evt.total) * 100);
+                  setUploadFiles(prev => prev.map((f, j) => j === i ? { ...f, progress: pct } : f));
+                }
+              };
+              xhr.onload = () => xhr.status >= 200 && xhr.status < 300 ? resolve() : reject(new Error(`${xhr.status}`));
+              xhr.onerror = () => reject(new Error('네트워크 오류'));
+              const formData = new FormData();
+              formData.append('parent_dir', currentPath || '/');
+              formData.append('file', file);
+              xhr.send(formData);
+            });
+          } else {
+            // 큰 파일: chunked upload
+            const totalSize = file.size;
+            const totalChunks = Math.ceil(totalSize / CHUNK_SIZE);
+            let uploadedBytes = 0;
 
-            xhr.upload.onprogress = (evt) => {
-              if (evt.lengthComputable) {
-                const pct = Math.round((evt.loaded / evt.total) * 100);
-                setUploadFiles(prev => prev.map((f, j) => j === i ? { ...f, progress: pct } : f));
-              }
-            };
+            for (let chunkIdx = 0; chunkIdx < totalChunks; chunkIdx++) {
+              const start = chunkIdx * CHUNK_SIZE;
+              const end = Math.min(start + CHUNK_SIZE, totalSize);
+              const chunk = file.slice(start, end);
+              const isLast = (chunkIdx === totalChunks - 1);
 
-            xhr.onload = () => {
-              if (xhr.status >= 200 && xhr.status < 300) {
-                setUploadFiles(prev => prev.map((f, j) => j === i ? { ...f, progress: 100, status: 'done' } : f));
-                resolve();
-              } else {
-                reject(new Error(`${xhr.status}: ${xhr.responseText}`));
-              }
-            };
-            xhr.onerror = () => reject(new Error('네트워크 오류'));
+              await new Promise((resolve, reject) => {
+                const xhr = new XMLHttpRequest();
+                xhr.open('POST', uploadApiUrl);
+                xhr.setRequestHeader('Authorization', `Token ${linkData.token}`);
+                xhr.setRequestHeader('Content-Range', `bytes ${start}-${end - 1}/${totalSize}`);
+                xhr.setRequestHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(file.name)}"`);
 
-            const formData = new FormData();
-            formData.append('parent_dir', currentPath || '/');
-            formData.append('file', file);
-            xhr.send(formData);
-          });
+                xhr.upload.onprogress = (evt) => {
+                  if (evt.lengthComputable) {
+                    const totalUploaded = uploadedBytes + evt.loaded;
+                    const pct = Math.round((totalUploaded / totalSize) * 100);
+                    setUploadFiles(prev => prev.map((f, j) => j === i ? { ...f, progress: pct } : f));
+                  }
+                };
+
+                xhr.onload = () => {
+                  if (xhr.status >= 200 && xhr.status < 300) {
+                    uploadedBytes = end;
+                    resolve();
+                  } else {
+                    reject(new Error(`Chunk ${chunkIdx + 1}/${totalChunks} 실패: ${xhr.status}`));
+                  }
+                };
+                xhr.onerror = () => reject(new Error('네트워크 오류'));
+
+                const formData = new FormData();
+                formData.append('parent_dir', currentPath || '/');
+                formData.append('file', chunk, file.name);
+                xhr.send(formData);
+              });
+            }
+          }
+
+          setUploadFiles(prev => prev.map((f, j) => j === i ? { ...f, progress: 100, status: 'done' } : f));
         } catch (err) {
           setUploadFiles(prev => prev.map((f, j) => j === i ? { ...f, status: 'error', error: err.message } : f));
         }
@@ -248,7 +292,7 @@ export default function Nas() {
     }
   };
 
- 
+
   // ── 삭제 ──
   const handleDelete = async (entry) => {
     if (!confirm(`"${entry.name}"을(를) 삭제하시겠습니까?`)) return;
