@@ -32,7 +32,7 @@ function SeatingArrangement() {
   const [historyPopup, setHistoryPopup] = useState(null);
 
   // 떠드는 학생 표시
-  const [noisyStudents, setNoisyStudents] = useState([]);  // [{id, count}]
+  const [noisyStudents, setNoisyStudents] = useState([]);  // [studentId, ...]
   const [noisyClickMode, setNoisyClickMode] = useState(false);
   const [showNoisyAlert, setShowNoisyAlert] = useState(true);
 
@@ -125,26 +125,19 @@ function SeatingArrangement() {
   // 떠드는 학생 토글
   const toggleNoisyStudent = useCallback((studentId) => {
     setNoisyStudents(prev => {
-      const existing = prev.find(n => n.id === studentId);
-      if(existing) {
-        return prev.map(n => n.id === studentId ? {...n, count: n.count + 1} : n);
-      }
-      return [...prev, {id: studentId, count: 1}];
+      const exists = prev.includes(studentId);
+      if(exists) return prev.filter(id => id !== studentId);
+      return [...prev, studentId];
     });
   }, []);
 
-  const removeNoisyStudent = useCallback((studentId) => {
-    setNoisyStudents(prev => prev.filter(n => n.id !== studentId));
-  }, []);
-
   const isNoisyStudent = useCallback((studentId) => {
-    return noisyStudents.some(n => n.id === studentId);
+    return noisyStudents.includes(studentId);
   }, [noisyStudents]);
 
   // 떠드는 학생 인사이트 생성
   const getNoisyInsights = useCallback(() => {
     if(noisyStudents.length === 0) return null;
-    const sorted = [...noisyStudents].sort((a,b) => b.count - a.count);
     // 현재 그리드에서 떠드는 학생 인접 여부 확인
     const adjacentPairs = [];
     for(let i=0; i<10; i++) {
@@ -163,14 +156,8 @@ function SeatingArrangement() {
         });
       }
     }
-    return { sorted, adjacentPairs };
+    return { adjacentPairs };
   }, [noisyStudents, grid, isNoisyStudent]);
-
-  // 줄별 통계에서 행 구간 라벨
-  const getRowLabel = (rowKey) => {
-    const labels = {row1:'1줄 (칠판쪽)', row2:'2줄', row3:'3줄', row4:'4줄 (뒤쪽)'};
-    return labels[rowKey] || rowKey;
-  };
 
   // ── BFS 짝/모둠 탐지 ──
   const findGroupForCell = (row, col) => {
@@ -508,9 +495,9 @@ function SeatingArrangement() {
                 <div className="noisy-alert-content">
                   <div className="noisy-alert-title">떠드는 학생 주의</div>
                   <div className="noisy-alert-text">
-                    {getNoisyInsights().sorted.map((n,i) => {
-                      const s = students.find(st=>st.id===n.id);
-                      return s ? <span key={n.id}>{i>0 && ', '}<strong>{s.name}</strong>({n.count}회)</span> : null;
+                    {noisyStudents.map((id,i) => {
+                      const s = students.find(st=>st.id===id);
+                      return s ? <span key={id}>{i>0 && ', '}<strong>{s.name}</strong></span> : null;
                     })}
                     {' — 자리 배치 시 서로 떨어뜨리는 것을 권장합니다.'}
                     {getNoisyInsights().adjacentPairs.length > 0 && (
@@ -560,12 +547,11 @@ function SeatingArrangement() {
                                 </div>
                               )}
                               {historyPopup?.row===i&&historyPopup?.col===j&&historyPopup.history.length>0&&(
-                                <div className="history-popup" onMouseEnter={()=>{}} onClick={e=>e.stopPropagation()}>
-                                  <div className="history-popup-title">📋 {historyPopup.studentName} 동석 이력</div>
+                                <div className="history-popup compact" onClick={e=>e.stopPropagation()}>
                                   {historyPopup.history.map((h,idx)=>(
                                     <div key={idx} className="history-popup-item">
                                       <span className="history-popup-date">{h.date}</span>
-                                      <span className="history-popup-warning">{h.partners.join(', ')}와 함께 앉음</span>
+                                      <span className="history-popup-names">{h.partners.join(', ')}</span>
                                     </div>
                                   ))}
                                 </div>
@@ -641,12 +627,12 @@ function SeatingArrangement() {
                     <div className="row-stats-section">
                       <h4>🔊 떠드는 학생 ({noisyStudents.length}명)</h4>
                       <div style={{display:'flex',flexWrap:'wrap',gap:'4px',marginBottom:'8px'}}>
-                        {noisyStudents.map(n => {
-                          const s = students.find(st=>st.id===n.id);
+                        {noisyStudents.map(id => {
+                          const s = students.find(st=>st.id===id);
                           return s ? (
-                            <span key={n.id} className="chip chip-red" style={{fontSize:'11px',padding:'4px 8px'}}>
-                              {s.name} ×{n.count}
-                              <button className="chip-remove" onClick={()=>removeNoisyStudent(n.id)}>×</button>
+                            <span key={id} className="chip chip-red" style={{fontSize:'11px',padding:'4px 8px'}}>
+                              {s.name}
+                              <button className="chip-remove" onClick={()=>toggleNoisyStudent(id)}>×</button>
                             </span>
                           ) : null;
                         })}
@@ -674,17 +660,13 @@ function SeatingArrangement() {
                               const st = rowStats[s.id];
                               if(!st) return null;
                               const vals = [st.row1, st.row2, st.row3, st.row4];
-                              const maxVal = Math.max(...vals);
-                              const minVal = Math.min(...vals);
                               const total = vals.reduce((a,b)=>a+b,0);
                               if(total === 0) return null;
                               return (
                                 <tr key={s.id}>
                                   <td>{s.student_number}. {s.name}</td>
                                   {vals.map((v,idx) => (
-                                    <td key={idx} className={maxVal>0 && v===maxVal && maxVal!==minVal ? 'stat-high' : v===minVal && maxVal!==minVal ? 'stat-low' : ''}>
-                                      {v}
-                                    </td>
+                                    <td key={idx}>{v}</td>
                                   ))}
                                 </tr>
                               );
