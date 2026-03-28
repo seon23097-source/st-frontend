@@ -9,7 +9,7 @@ import Checklist from './Checklist';
 import SeatingArrangement from './SeatingArrangement';
 import BehaviorDevelopment from './BehaviorDevelopment';
 import GradeProcess from './GradeProcess';
-import Album from './Nas';
+import Nas from './Nas';
 import PresentationKing from './PresentationKing';
 import { categoriesAPI, studentsAPI, evaluationsAPI, removeToken, removeTeacher, getTeacher, attendanceAPI, currentSchoolYear } from '../utils/api';
 import * as XLSX from 'xlsx';
