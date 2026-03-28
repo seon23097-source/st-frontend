@@ -76,6 +76,7 @@ export default function Nas() {
   const [previewFile, setPreviewFile] = useState(null);
   const [showNewFolder, setShowNewFolder] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [spaceInfo, setSpaceInfo] = useState(null);
   const fileInputRef = useRef(null);
 
   // ── 초기화 ──
@@ -89,6 +90,8 @@ export default function Nas() {
       setError(null);
       const data = await nasJSON('/init');
       setRepos(data.repos || []);
+      // 용량 조회
+      nasJSON('/space').then(s => setSpaceInfo(s)).catch(() => {});
       // 공용 라이브러리 우선 선택
       const shared = (data.repos || []).find(r => r.ownership === 'shared');
       if (shared) {
@@ -379,6 +382,20 @@ export default function Nas() {
         <div style={styles.headerLeft}>
           <h2 style={styles.title}>NAS</h2>
           <div style={styles.repoTabs}>
+          {spaceInfo && spaceInfo.total > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
+              <div style={{
+                width: 80, height: 6, background: 'var(--bg-tertiary)', borderRadius: 3, overflow: 'hidden',
+              }}>
+                <div style={{
+                  height: '100%', borderRadius: 3,
+                  width: `${Math.min(100, (spaceInfo.usage / spaceInfo.total) * 100)}%`,
+                  background: (spaceInfo.usage / spaceInfo.total) > 0.9 ? 'var(--danger)' : 'var(--primary)',
+                }} />
+              </div>
+              <span>{formatSize(spaceInfo.usage)} / {formatSize(spaceInfo.total)}</span>
+            </div>
+          )}
             {repos.map(r => {
               const id = r.repo_id || r.id;
               const active = (currentRepo?.repo_id || currentRepo?.id) === id;
@@ -692,9 +709,10 @@ const styles = {
     boxShadow: 'var(--shadow-sm)', cursor: 'pointer', overflow: 'hidden',
     transition: 'var(--transition)', position: 'relative',
     display: 'flex', flexDirection: 'column',
+    maxHeight: 220,
   },
   thumbWrap: {
-    width: '100%', aspectRatio: '1', background: 'var(--bg-tertiary)',
+    width: '100%', height: 120, background: 'var(--bg-tertiary)',
     display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden',
   },
   thumbImg: { width: '100%', height: '100%', objectFit: 'cover' },
