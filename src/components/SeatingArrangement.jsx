@@ -42,6 +42,9 @@ function SeatingArrangement() {
   // 중복 짝 맵
   const [duplicatePairMap, setDuplicatePairMap] = useState({});  // {studentId: Set<partnerId>}
 
+  // 자주 떠드는 학생 (전체 배치 집계)
+  const [frequentNoisyStudents, setFrequentNoisyStudents] = useState([]);  // [{id, count}]
+
   // Ollama 대화창
   const [showAiPanel,  setShowAiPanel]  = useState(false);
   const [aiMessages,   setAiMessages]   = useState([]);
@@ -77,6 +80,7 @@ function SeatingArrangement() {
     students.forEach(s => { stats[s.id] = {row1:0, row2:0, row3:0, row4:0}; });
 
     // 모든 이전 배치에서 줄별 통계 + 짝 이력 동시 수집
+    const noisyCount = {};  // {studentId: count}
     for(const arr of arrangements) {
       if(arr.id === selectedArrangement.id) continue;
       try {
@@ -89,6 +93,10 @@ function SeatingArrangement() {
             else if(p.row_pos >= 2) stats[p.student_id].row3++;
             else stats[p.student_id].row4++;
           }
+        });
+        // 떠드는 학생 집계
+        (detail.preferences?.noisy_students || []).forEach(sid => {
+          noisyCount[sid] = (noisyCount[sid] || 0) + 1;
         });
         // 짝 이력 (BFS)
         const gridSnap = Array(10).fill(null).map(()=>Array(10).fill(null));
@@ -122,9 +130,20 @@ function SeatingArrangement() {
       } catch{}
     }
 
+    // 현재 배치의 떠드는 학생도 포함
+    noisyStudents.forEach(sid => {
+      noisyCount[sid] = (noisyCount[sid] || 0) + 1;
+    });
+    // 2회 이상 떠든 학생 집계
+    const frequent = Object.entries(noisyCount)
+      .filter(([,count]) => count >= 2)
+      .map(([id, count]) => ({id: parseInt(id), count}))
+      .sort((a,b) => b.count - a.count);
+    setFrequentNoisyStudents(frequent);
+
     setDuplicatePairMap(pairMap);
     setRowStats(stats);
-  }, [arrangements, students, selectedArrangement]);
+  }, [arrangements, students, selectedArrangement, noisyStudents]);
 
   useEffect(() => { if(selectedArrangement) computeDuplicatesAndRowStats(); }, [selectedArrangement, computeDuplicatesAndRowStats]);
 
@@ -339,10 +358,9 @@ function SeatingArrangement() {
       const newGrid=Array(10).fill(null).map(()=>Array(10).fill(null));
       const fairOrderedRegulars=await calculateRowFairness(regulars);
       const allToArrange=[...fairOrderedRegulars];
-      const histories=await Promise.all(allToArrange.map(s=>seatingAPI.getHistory(s.id).catch(()=>[])));
-      const pairHistory={};
-      allToArrange.forEach((s,i)=>{ const p=new Set(); histories[i].forEach(h=>(h.partner_ids||[]).forEach(pid=>p.add(pid))); pairHistory[s.id]=p; });
+      // 이미 계산된 duplicatePairMap 사용 (모든 이전 배치의 짝 이력)
       const shouldSeparate=(id1,id2)=>separateStudents.some(pair=>(pair[0]===id1&&pair[1]===id2)||(pair[0]===id2&&pair[1]===id1));
+      const wasPaired=(id1,id2)=>duplicatePairMap[id1]?.has(id2) || false;
       const isCellEmpty=(r,c)=>r>=0&&r<8&&c>=0&&c<10&&!newGrid[r][c]; // 행 0~7만 사용 (8,9행 제외)
       let si=0;
 
@@ -369,7 +387,7 @@ function SeatingArrangement() {
                 let s2=null;
                 for(let i=si;i<allToArrange.length;i++){
                   const c=allToArrange[i];
-                  if(!shouldSeparate(s1.id,c.id)&&!pairHistory[s1.id]?.has(c.id)){ s2=c; allToArrange.splice(i,1); break; }
+                  if(!shouldSeparate(s1.id,c.id)&&!wasPaired(s1.id,c.id)){ s2=c; allToArrange.splice(i,1); break; }
                 }
                 if(!s2) for(let i=si;i<allToArrange.length;i++){
                   const c=allToArrange[i]; if(!shouldSeparate(s1.id,c.id)){ s2=c; allToArrange.splice(i,1); break; }
@@ -520,18 +538,34 @@ function SeatingArrangement() {
               </div>
             </div>
 
-            {/* 떠드는 학생 알림 배너 */}
+            {/* 자주 떠드는 학생 알림 배너 */}
+            {frequentNoisyStudents.length > 0 && (
+              <div className="noisy-alert-banner" style={{marginBottom:'8px',background:'linear-gradient(90deg,#fef3c7,#fff7ed)',border:'1px solid #f59e0b'}}>
+                <span className="noisy-alert-icon">📢</span>
+                <div className="noisy-alert-content">
+                  <div className="noisy-alert-title">자주 떠드는 학생 (2회 이상 표시됨)</div>
+                  <div className="noisy-alert-text">
+                    {frequentNoisyStudents.map((n,i) => {
+                      const s = students.find(st=>st.id===n.id);
+                      return s ? <span key={n.id}>{i>0 && ', '}<strong>{s.name}</strong>({n.count}회)</span> : null;
+                    })}
+                    {' — 자리 배치 시 분리를 권장합니다.'}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 현재 배치 떠드는 학생 알림 배너 */}
             {showNoisyAlert && getNoisyInsights() && (
               <div className="noisy-alert-banner">
                 <span className="noisy-alert-icon">⚠️</span>
                 <div className="noisy-alert-content">
-                  <div className="noisy-alert-title">떠드는 학생 주의</div>
+                  <div className="noisy-alert-title">이번 배치 떠드는 학생</div>
                   <div className="noisy-alert-text">
                     {noisyStudents.map((id,i) => {
                       const s = students.find(st=>st.id===id);
                       return s ? <span key={id}>{i>0 && ', '}<strong>{s.name}</strong></span> : null;
                     })}
-                    {' — 자리 배치 시 서로 떨어뜨리는 것을 권장합니다.'}
                     {getNoisyInsights().adjacentPairs.length > 0 && (
                       <span style={{display:'block',marginTop:'4px',color:'#dc2626',fontWeight:600}}>
                         🚨 현재 인접 배치: {getNoisyInsights().adjacentPairs.map(p=>p.names.join(' ↔ ')).join(', ')}
@@ -795,7 +829,7 @@ function SeatingArrangement() {
               </div>
               <div className="student-list" style={{maxHeight:'200px',overflowY:'auto'}}>
                 {students.filter(s=>!frontStudents.includes(s.id)).map(s=>(
-                  <div key={s.id} className="student-card draggable" style={{cursor:'pointer'}}
+                  <div key={s.id} className="student-card draggable" style={{cursor:'pointer',padding:'10px 12px',marginBottom:'4px'}}
                     onClick={()=>setFrontStudents(p=>[...p,s.id])}>
                     {s.student_number}. {s.name}
                   </div>
