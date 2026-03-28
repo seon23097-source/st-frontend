@@ -139,7 +139,7 @@ function SeatingArrangement() {
     setRowStats(stats);
   }, [arrangements, students, selectedArrangement]);
 
-  useEffect(() => { if(selectedArrangement) computeDuplicatesAndRowStats(); }, [selectedArrangement]);
+  useEffect(() => { if(selectedArrangement) computeDuplicatesAndRowStats(); }, [selectedArrangement, computeDuplicatesAndRowStats]);
 
   // 현재 그리드에서 중복 짝인 셀 판별
   const isDuplicatePairCell = useCallback((row, col) => {
