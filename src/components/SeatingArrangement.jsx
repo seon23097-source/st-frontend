@@ -71,20 +71,16 @@ function SeatingArrangement() {
 
   // ── 중복 짝 감지 + 줄별 통계 계산 ──
   const computeDuplicatesAndRowStats = useCallback(async () => {
-    if(!arrangements.length || !students.length) return;
-    const pairMap = {};  // studentId -> Set<partnerId> (최근 1개 배치만)
-    const stats = {};    // studentId -> {row1:0, row2:0, row3:0, row4:0}
+    if(!arrangements.length || !students.length || !selectedArrangement) return;
+    const pairMap = {};
+    const stats = {};
     students.forEach(s => { stats[s.id] = {row1:0, row2:0, row3:0, row4:0}; });
 
-    // 현재 배치를 제외한 나머지 배치를 id 내림차순 정렬 (높은 id = 최신)
-    const otherArrangements = arrangements
-      .filter(a => a.id !== selectedArrangement?.id)
-      .sort((a,b) => b.id - a.id);
-
-    for(const arr of otherArrangements) {
+    // 전체 배치에서 줄별 통계 계산 (현재 배치 제외)
+    for(const arr of arrangements) {
+      if(arr.id === selectedArrangement.id) continue;
       try {
         const detail = await seatingAPI.getArrangementDetails(arr.id);
-        // 줄별 통계 계산 (전체 이전 배치)
         detail.positions.forEach(p => {
           if(stats[p.student_id]) {
             if(p.row_pos >= 6) stats[p.student_id].row1++;
@@ -96,24 +92,26 @@ function SeatingArrangement() {
       } catch{}
     }
 
-    // 직전 배치 찾기: 현재 배치보다 id가 작은 것 중 가장 큰 것
-    const currentId = selectedArrangement?.id || Infinity;
-    const prevArrangement = arrangements
-      .filter(a => a.id !== currentId && a.id < currentId)
-      .sort((a,b) => b.id - a.id)[0];
+    // 직전 배치 찾기: arrangements 배열에서 현재 배치 바로 앞 항목
+    // 사이드바 목록이 최신→오래된 순이면 index+1이 직전, 오래된→최신이면 index-1이 직전
+    const currentIdx = arrangements.findIndex(a => a.id === selectedArrangement.id);
+    // 배열에서 현재 다음 항목이 "이전 배치"(더 오래된 것)
+    // 사이드바: 4월3일(idx0), 3월20일(idx1), 3월11일(idx2), 3월3일(idx3)
+    // 4월3일 선택 → 직전은 3월20일(idx1)
+    const prevArr = currentIdx >= 0 && currentIdx < arrangements.length - 1
+      ? arrangements[currentIdx + 1]
+      : null;
 
-    if(prevArrangement) {
+    if(prevArr) {
       try {
-        const latestDetail = await seatingAPI.getArrangementDetails(prevArrangement.id);
-        // BFS로 그룹 찾기
-        const pos = latestDetail.positions;
+        const prevDetail = await seatingAPI.getArrangementDetails(prevArr.id);
+        const pos = prevDetail.positions;
         const gridSnap = Array(10).fill(null).map(()=>Array(10).fill(null));
         pos.forEach(p => { gridSnap[p.row_pos][p.col_pos] = p.student_id; });
         const visited = Array(10).fill(null).map(()=>Array(10).fill(false));
         for(let r=0; r<10; r++) {
           for(let c=0; c<10; c++) {
             if(!gridSnap[r][c] || visited[r][c]) continue;
-            // BFS로 인접 그룹 수집
             const group = [];
             const queue = [[r,c]];
             visited[r][c] = true;
@@ -128,7 +126,6 @@ function SeatingArrangement() {
                 }
               });
             }
-            // 그룹 내 모든 학생을 서로의 파트너로 등록
             group.forEach(sid => {
               if(!pairMap[sid]) pairMap[sid] = new Set();
               group.forEach(pid => { if(pid !== sid) pairMap[sid].add(pid); });
@@ -301,6 +298,7 @@ function SeatingArrangement() {
   // ── 드래그앤드롭 ──
   const handleDragStart = (e,student,fromGrid=false,row=null,col=null) => {
     setDraggedStudent({student,fromGrid,row,col});
+    setHistoryPopup(null);
     e.dataTransfer.effectAllowed='move';
   };
   const handleDrop = async (e,toRow,toCol) => {
@@ -576,7 +574,7 @@ function SeatingArrangement() {
                               className={`grid-cell ${cell?'occupied':''} ${cellType==='pair'?'has-pair':''} ${cellType==='group'?'has-group':''} ${dupPair?'duplicate-pair':''} ${noisy?'noisy-student':''}`}
                               onDragOver={handleDragOver}
                               onDrop={e=>handleDrop(e,i,j)}
-                              onMouseEnter={()=>cell&&checkHistory(i,j)}
+                              onMouseEnter={()=>cell&&!draggedStudent&&checkHistory(i,j)}
                               onMouseLeave={()=>setHistoryPopup(null)}
                               onClick={()=>{
                                 if(noisyClickMode && cell) {
@@ -593,12 +591,20 @@ function SeatingArrangement() {
                                   {!noisyClickMode && <button className="btn-remove-cell" onClick={e=>{e.stopPropagation();handleRemoveFromGrid(i,j);}}>×</button>}
                                 </div>
                               )}
-                              {historyPopup?.row===i&&historyPopup?.col===j&&historyPopup.history.length>0&&(
-                                <div className="history-popup compact" onClick={e=>e.stopPropagation()}>
+                              {historyPopup?.row===i&&historyPopup?.col===j&&historyPopup.history.length>0&&!draggedStudent&&(
+                                <div className="history-popup" style={{
+                                  position:'absolute',bottom:'100%',left:'50%',transform:'translateX(-50%)',
+                                  marginBottom:'6px',background:'#111827',border:'1px solid #374151',
+                                  borderRadius:'8px',padding:'8px 12px',zIndex:100,minWidth:'160px',
+                                  pointerEvents:'none',boxShadow:'0 4px 16px rgba(0,0,0,0.4)'
+                                }}>
                                   {historyPopup.history.map((h,idx)=>(
-                                    <div key={idx} className="history-popup-item">
-                                      <span className="history-popup-date">{h.date}</span>
-                                      <span className="history-popup-names">{h.partners.join(', ')}</span>
+                                    <div key={idx} style={{
+                                      display:'flex',gap:'8px',alignItems:'center',padding:'3px 0',
+                                      borderBottom:idx<historyPopup.history.length-1?'1px solid #374151':'none'
+                                    }}>
+                                      <span style={{color:'#9ca3af',fontSize:'12px',flexShrink:0}}>{h.date}</span>
+                                      <span style={{color:'#fbbf24',fontWeight:700,fontSize:'13px'}}>{h.partners.join(', ')}</span>
                                     </div>
                                   ))}
                                 </div>
