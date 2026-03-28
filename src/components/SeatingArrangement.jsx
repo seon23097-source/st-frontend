@@ -76,11 +76,12 @@ function SeatingArrangement() {
     const stats = {};
     students.forEach(s => { stats[s.id] = {row1:0, row2:0, row3:0, row4:0}; });
 
-    // 전체 배치에서 줄별 통계 계산 (현재 배치 제외)
+    // 모든 이전 배치에서 줄별 통계 + 짝 이력 동시 수집
     for(const arr of arrangements) {
       if(arr.id === selectedArrangement.id) continue;
       try {
         const detail = await seatingAPI.getArrangementDetails(arr.id);
+        // 줄별 통계
         detail.positions.forEach(p => {
           if(stats[p.student_id]) {
             if(p.row_pos >= 6) stats[p.student_id].row1++;
@@ -89,26 +90,9 @@ function SeatingArrangement() {
             else stats[p.student_id].row4++;
           }
         });
-      } catch{}
-    }
-
-    // 직전 배치 찾기: arrangements 배열에서 현재 배치 바로 앞 항목
-    // 사이드바 목록이 최신→오래된 순이면 index+1이 직전, 오래된→최신이면 index-1이 직전
-    const currentIdx = arrangements.findIndex(a => a.id === selectedArrangement.id);
-    // 배열에서 현재 다음 항목이 "이전 배치"(더 오래된 것)
-    // 사이드바: 4월3일(idx0), 3월20일(idx1), 3월11일(idx2), 3월3일(idx3)
-    // 4월3일 선택 → 직전은 3월20일(idx1)
-    const prevArr = currentIdx >= 0 && currentIdx < arrangements.length - 1
-      ? arrangements[currentIdx + 1]
-      : null;
-
-    if(prevArr) {
-      try {
-        const prevDetail = await seatingAPI.getArrangementDetails(prevArr.id);
-        const pos = prevDetail.positions;
-        console.log('[짝중복] 현재:', selectedArrangement.title, '직전:', prevArr.title, '직전학생수:', pos.length);
+        // 짝 이력 (BFS)
         const gridSnap = Array(10).fill(null).map(()=>Array(10).fill(null));
-        pos.forEach(p => { gridSnap[p.row_pos][p.col_pos] = p.student_id; });
+        detail.positions.forEach(p => { gridSnap[p.row_pos][p.col_pos] = p.student_id; });
         const visited = Array(10).fill(null).map(()=>Array(10).fill(false));
         for(let r=0; r<10; r++) {
           for(let c=0; c<10; c++) {
@@ -127,20 +111,15 @@ function SeatingArrangement() {
                 }
               });
             }
-            group.forEach(sid => {
-              if(!pairMap[sid]) pairMap[sid] = new Set();
-              group.forEach(pid => { if(pid !== sid) pairMap[sid].add(pid); });
-            });
             if(group.length >= 2) {
-              const names = group.map(sid => { const s=students.find(st=>st.id===sid); return s?.name||sid; });
-              console.log('[짝중복] 그룹:', names.join('+'));
+              group.forEach(sid => {
+                if(!pairMap[sid]) pairMap[sid] = new Set();
+                group.forEach(pid => { if(pid !== sid) pairMap[sid].add(pid); });
+              });
             }
           }
         }
-        console.log('[짝중복] pairMap:', Object.keys(pairMap).length, '명');
-      } catch(e) { console.error('[짝중복] 오류:', e); }
-    } else {
-      console.log('[짝중복] 직전 배치 없음 (idx:', currentIdx, '총:', arrangements.length, ')');
+      } catch{}
     }
 
     setDuplicatePairMap(pairMap);
