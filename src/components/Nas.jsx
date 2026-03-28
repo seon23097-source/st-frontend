@@ -191,28 +191,41 @@ export default function Nas() {
     setUploading(true);
     let uploaded = 0;
     const total = files.length;
+    const failed = [];
 
     try {
+      // 1. 백엔드에서 업로드 링크 + 토큰 발급
+      const linkData = await nasJSON(`/repos/${repoId}/upload-link?p=${encodeURIComponent(currentPath)}`);
+
       for (const file of files) {
-        setUploadProgress(`${++uploaded}/${total}: ${file.name}`);
-        const formData = new FormData();
-        formData.append('file', file);
+        uploaded++;
+        setUploadProgress(`${uploaded}/${total}: ${file.name} (${formatSize(file.size)})`);
 
-        const token = getToken();
-        const res = await fetch(
-          `${API_BASE}/nas/repos/${repoId}/upload?p=${encodeURIComponent(currentPath)}`,
-          {
+        try {
+          // 2. 프론트에서 NAS2로 직접 업로드
+          const formData = new FormData();
+          formData.append('parent_dir', currentPath || '/');
+          formData.append('file', file);
+
+          const res = await fetch(linkData.upload_url, {
             method: 'POST',
-            headers: { Authorization: `Bearer ${token}` },
+            headers: { Authorization: `Token ${linkData.token}` },
             body: formData,
-          },
-        );
+          });
 
-        if (!res.ok) {
-          const errText = await res.text();
-          throw new Error(`${res.status}: ${errText}`);
+          if (!res.ok) {
+            const errText = await res.text();
+            failed.push(`${file.name}: ${errText}`);
+          }
+        } catch (err) {
+          failed.push(`${file.name}: ${err.message}`);
         }
       }
+
+      if (failed.length > 0) {
+        alert(`일부 파일 업로드 실패:\n${failed.join('\n')}`);
+      }
+
       await loadDir(repoId, currentPath);
     } catch (err) {
       alert('업로드 실패: ' + err.message);
