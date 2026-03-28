@@ -574,6 +574,25 @@
   margin-bottom: 12px;
 }
 
+/* ===== 모달 학생 목록 항목 ===== */
+.modal-student-item {
+  padding: 10px 14px;
+  background: white;
+  border: 1px solid var(--border-light);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-primary);
+  transition: all 0.15s;
+}
+
+.modal-student-item:hover {
+  background: var(--primary);
+  color: white;
+  transform: translateX(4px);
+}
+
 /* ===== 자동 배치 모달 정보 ===== */
 .auto-arrange-info {
   background: #f0fdf4;

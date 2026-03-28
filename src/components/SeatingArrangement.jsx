@@ -329,24 +329,22 @@ function SeatingArrangement() {
   };
   const handleDragOver = (e) => { e.preventDefault(); e.dataTransfer.dropEffect='move'; };
 
-  // ── 행 공정성 자동배치 ──
-  const calculateRowFairness = async (studentList) => {
-    const rowScores={};
-    for(const arr of arrangements){
-      if(arr.id===selectedArrangement?.id) continue;
-      try {
-        const detail=await seatingAPI.getArrangementDetails(arr.id);
-        detail.positions.forEach(p=>{ if(!rowScores[p.student_id]) rowScores[p.student_id]=[]; rowScores[p.student_id].push(p.row_pos); });
-      } catch{}
-    }
-    const scored=studentList.map(student=>{
-      const rows=rowScores[student.id];
-      if(!rows||rows.length===0) return {student,avgRow:5+Math.random()*0.5};
-      const avg=rows.reduce((a,b)=>a+b,0)/rows.length;
-      return {student,avgRow:avg+Math.random()*0.3};
+  // ── 행 공정성 자동배치 (rowStats 활용) ──
+  const calculateRowFairness = (studentList) => {
+    // rowStats: {studentId: {row1(칠판):n, row2:n, row3:n, row4(뒤):n}}
+    // 칠판쪽(row1)에 많이 앉은 학생은 이번에 뒤쪽으로, 뒤쪽(row4)에 많이 앉은 학생은 앞쪽으로
+    const scored = studentList.map(student => {
+      const st = rowStats[student.id];
+      if(!st) return {student, score: Math.random()};
+      const total = st.row1 + st.row2 + st.row3 + st.row4;
+      if(total === 0) return {student, score: Math.random()};
+      // 가중 평균: 앞쪽(row1=1, row2=2)에 많이 앉았으면 score가 높음 → 이번에 뒤쪽 배치
+      const weightedAvg = (st.row1 * 1 + st.row2 * 2 + st.row3 * 3 + st.row4 * 4) / total;
+      return {student, score: weightedAvg + Math.random() * 0.3};
     });
-    scored.sort((a,b)=>b.avgRow-a.avgRow);
-    return scored.map(s=>s.student);
+    // score 높은 학생(이전에 앞쪽 많이 앉음)이 배열 앞 → 뒤쪽 행부터 채워짐
+    scored.sort((a,b) => b.score - a.score);
+    return scored.map(s => s.student);
   };
 
   const executeAutoArrange = async () => {
@@ -356,7 +354,7 @@ function SeatingArrangement() {
       const frontList=allStudents.filter(s=>frontStudents.includes(s.id));
       const regulars=allStudents.filter(s=>!frontStudents.includes(s.id));
       const newGrid=Array(10).fill(null).map(()=>Array(10).fill(null));
-      const fairOrderedRegulars=await calculateRowFairness(regulars);
+      const fairOrderedRegulars=calculateRowFairness(regulars);
       const allToArrange=[...fairOrderedRegulars];
       // 이미 계산된 duplicatePairMap 사용 (모든 이전 배치의 짝 이력)
       const shouldSeparate=(id1,id2)=>separateStudents.some(pair=>(pair[0]===id1&&pair[1]===id2)||(pair[0]===id2&&pair[1]===id1));
@@ -829,7 +827,7 @@ function SeatingArrangement() {
               </div>
               <div className="student-list" style={{maxHeight:'200px',overflowY:'auto'}}>
                 {students.filter(s=>!frontStudents.includes(s.id)).map(s=>(
-                  <div key={s.id} className="student-card draggable" style={{cursor:'pointer',padding:'10px 12px',marginBottom:'4px'}}
+                  <div key={s.id} className="modal-student-item"
                     onClick={()=>setFrontStudents(p=>[...p,s.id])}>
                     {s.student_number}. {s.name}
                   </div>
