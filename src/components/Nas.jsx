@@ -69,6 +69,7 @@ export default function Nas() {
   const [entries, setEntries] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [uploadFiles, setUploadFiles] = useState([]); // [{name, size, progress, status}]
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('nas_viewMode') || 'grid');
@@ -165,6 +166,7 @@ export default function Nas() {
     }
   };
 
+
   // ── 파일 다운로드 ──
   const handleDownload = async (entry) => {
     const repoId = currentRepo.repo_id || currentRepo.id;
@@ -188,54 +190,65 @@ export default function Nas() {
     if (!currentRepo) { alert('라이브러리를 먼저 선택하세요.'); return; }
     const repoId = currentRepo.repo_id || currentRepo.id;
 
+    const fileList = Array.from(files).map((f, i) => ({
+      name: f.name, size: f.size, progress: 0, status: 'waiting', index: i,
+    }));
+    setUploadFiles(fileList);
     setUploading(true);
-    let uploaded = 0;
-    const total = files.length;
-    const failed = [];
 
     try {
-      // 1. 백엔드에서 업로드 링크 + 토큰 발급
       const linkData = await nasJSON(`/repos/${repoId}/upload-link?p=${encodeURIComponent(currentPath)}`);
 
-      for (const file of files) {
-        uploaded++;
-        setUploadProgress(`${uploaded}/${total}: ${file.name} (${formatSize(file.size)})`);
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setUploadFiles(prev => prev.map((f, j) => j === i ? { ...f, status: 'uploading' } : f));
 
         try {
-          // 2. 프론트에서 NAS2로 직접 업로드
-          const formData = new FormData();
-          formData.append('parent_dir', currentPath || '/');
-          formData.append('file', file);
+          await new Promise((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', linkData.upload_url);
+            xhr.setRequestHeader('Authorization', `Token ${linkData.token}`);
 
-          const res = await fetch(linkData.upload_url, {
-            method: 'POST',
-            headers: { Authorization: `Token ${linkData.token}` },
-            body: formData,
+            xhr.upload.onprogress = (evt) => {
+              if (evt.lengthComputable) {
+                const pct = Math.round((evt.loaded / evt.total) * 100);
+                setUploadFiles(prev => prev.map((f, j) => j === i ? { ...f, progress: pct } : f));
+              }
+            };
+
+            xhr.onload = () => {
+              if (xhr.status >= 200 && xhr.status < 300) {
+                setUploadFiles(prev => prev.map((f, j) => j === i ? { ...f, progress: 100, status: 'done' } : f));
+                resolve();
+              } else {
+                reject(new Error(`${xhr.status}: ${xhr.responseText}`));
+              }
+            };
+            xhr.onerror = () => reject(new Error('네트워크 오류'));
+
+            const formData = new FormData();
+            formData.append('parent_dir', currentPath || '/');
+            formData.append('file', file);
+            xhr.send(formData);
           });
-
-          if (!res.ok) {
-            const errText = await res.text();
-            failed.push(`${file.name}: ${errText}`);
-          }
         } catch (err) {
-          failed.push(`${file.name}: ${err.message}`);
+          setUploadFiles(prev => prev.map((f, j) => j === i ? { ...f, status: 'error', error: err.message } : f));
         }
-      }
-
-      if (failed.length > 0) {
-        alert(`일부 파일 업로드 실패:\n${failed.join('\n')}`);
       }
 
       await loadDir(repoId, currentPath);
     } catch (err) {
-      alert('업로드 실패: ' + err.message);
+      alert('업로드 준비 실패: ' + err.message);
     } finally {
-      setUploading(false);
-      setUploadProgress('');
+      setTimeout(() => {
+        setUploading(false);
+        setUploadFiles([]);
+      }, 2000);
       if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
+ 
   // ── 삭제 ──
   const handleDelete = async (entry) => {
     if (!confirm(`"${entry.name}"을(를) 삭제하시겠습니까?`)) return;
@@ -488,6 +501,51 @@ export default function Nas() {
           ))}
         </div>
       )}
+
+      {/* ── 업로드 진행 모달 ── */}
+      {uploading && uploadFiles.length > 0 && (
+        <div style={{
+          position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
+        }}>
+          <div style={{
+            background: 'var(--bg-primary)', borderRadius: 'var(--radius-lg)',
+            padding: 24, width: '90%', maxWidth: 480, maxHeight: '70vh', overflow: 'auto',
+            boxShadow: 'var(--shadow-lg)',
+          }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: 16, color: 'var(--text-primary)' }}>
+              📤 파일 업로드 ({uploadFiles.filter(f => f.status === 'done').length}/{uploadFiles.length})
+            </h3>
+            {uploadFiles.map((f, i) => (
+              <div key={i} style={{ marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 13, marginBottom: 4 }}>
+                  <span style={{
+                    color: 'var(--text-primary)', overflow: 'hidden',
+                    textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1, marginRight: 8,
+                  }}>{f.name}</span>
+                  <span style={{ color: 'var(--text-tertiary)', flexShrink: 0 }}>
+                    {f.status === 'done' ? '✅' : f.status === 'error' ? '❌' : f.status === 'uploading' ? `${f.progress}%` : '⏳'}
+                    {' '}{formatSize(f.size)}
+                  </span>
+                </div>
+                <div style={{
+                  height: 6, background: 'var(--bg-tertiary)', borderRadius: 3, overflow: 'hidden',
+                }}>
+                  <div style={{
+                    height: '100%', borderRadius: 3, transition: 'width 0.3s',
+                    width: `${f.progress}%`,
+                    background: f.status === 'error' ? 'var(--danger)' : f.status === 'done' ? 'var(--success)' : 'var(--primary)',
+                  }} />
+                </div>
+                {f.status === 'error' && (
+                  <div style={{ fontSize: 11, color: 'var(--danger)', marginTop: 2 }}>{f.error}</div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
 
       {/* ── 이미지 미리보기 모달 ── */}
       {previewFile && (
