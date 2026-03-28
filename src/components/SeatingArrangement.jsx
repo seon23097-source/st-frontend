@@ -76,10 +76,10 @@ function SeatingArrangement() {
     const stats = {};    // studentId -> {row1:0, row2:0, row3:0, row4:0}
     students.forEach(s => { stats[s.id] = {row1:0, row2:0, row3:0, row4:0}; });
 
-    // 현재 배치를 제외한 나머지 배치를 날짜순 정렬 (최신 먼저)
+    // 현재 배치를 제외한 나머지 배치를 id 내림차순 정렬 (높은 id = 최신)
     const otherArrangements = arrangements
       .filter(a => a.id !== selectedArrangement?.id)
-      .sort((a,b) => new Date(b.created_at || b.id) - new Date(a.created_at || a.id));
+      .sort((a,b) => b.id - a.id);
 
     for(const arr of otherArrangements) {
       try {
@@ -96,10 +96,16 @@ function SeatingArrangement() {
       } catch{}
     }
 
-    // 가장 최근 1개 배치에서만 짝 이력 수집
-    if(otherArrangements.length > 0) {
+    // 직전 배치 찾기: 현재 배치보다 id가 작은 것 중 가장 큰 것
+    const currentId = selectedArrangement?.id || Infinity;
+    const prevArrangement = arrangements
+      .filter(a => a.id !== currentId && a.id < currentId)
+      .sort((a,b) => b.id - a.id)[0]
+      || otherArrangements[0];  // fallback: 가장 최신
+
+    if(prevArrangement) {
       try {
-        const latestDetail = await seatingAPI.getArrangementDetails(otherArrangements[0].id);
+        const latestDetail = await seatingAPI.getArrangementDetails(prevArrangement.id);
         // BFS로 그룹 찾기
         const pos = latestDetail.positions;
         const gridSnap = Array(10).fill(null).map(()=>Array(10).fill(null));
@@ -151,6 +157,7 @@ function SeatingArrangement() {
   }, [grid, duplicatePairMap]);
 
   // 떠드는 학생 토글
+  const noisyInitialLoad = useRef(true);
   const toggleNoisyStudent = useCallback((studentId) => {
     setNoisyStudents(prev => {
       const exists = prev.includes(studentId);
@@ -158,6 +165,17 @@ function SeatingArrangement() {
       return [...prev, studentId];
     });
   }, []);
+
+  // 떠드는 학생 변경 시 자동 저장
+  useEffect(() => {
+    if(noisyInitialLoad.current) { noisyInitialLoad.current = false; return; }
+    if(!selectedArrangement) return;
+    seatingAPI.savePreferences(selectedArrangement.id, {
+      front_students: frontStudents,
+      separate_students: separateStudents,
+      noisy_students: noisyStudents,
+    }).catch(() => {});
+  }, [noisyStudents]);
 
   const isNoisyStudent = useCallback((studentId) => {
     return noisyStudents.includes(studentId);
@@ -243,6 +261,8 @@ function SeatingArrangement() {
       setUnassignedStudents(students.filter(s=>!assignedIds.includes(s.id)));
       setFrontStudents(data.preferences.front_students||[]);
       setSeparateStudents(data.preferences.separate_students||[]);
+      setNoisyStudents(data.preferences.noisy_students||[]);
+      noisyInitialLoad.current = true;
     } catch(e){ console.error('배치 상세 로드 실패:',e); }
   };
 
@@ -410,7 +430,7 @@ function SeatingArrangement() {
   const handleSavePreferences = async () => {
     if(!selectedArrangement) return;
     try {
-      await seatingAPI.savePreferences(selectedArrangement.id,{front_students:frontStudents,separate_students:separateStudents});
+      await seatingAPI.savePreferences(selectedArrangement.id,{front_students:frontStudents,separate_students:separateStudents,noisy_students:noisyStudents});
       showToast('설정 저장됨 ✓','success');
     } catch(e){ showToast('저장 실패: '+e.message,'error'); }
   };
