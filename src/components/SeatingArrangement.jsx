@@ -161,7 +161,7 @@ function SeatingArrangement() {
             }
           }
         });
-      });
+      }
     }
     return { sorted, adjacentPairs };
   }, [noisyStudents, grid, isNoisyStudent]);
