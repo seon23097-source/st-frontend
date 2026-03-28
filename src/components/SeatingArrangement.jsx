@@ -106,6 +106,7 @@ function SeatingArrangement() {
       try {
         const prevDetail = await seatingAPI.getArrangementDetails(prevArr.id);
         const pos = prevDetail.positions;
+        console.log('[짝중복] 현재:', selectedArrangement.title, '직전:', prevArr.title, '직전학생수:', pos.length);
         const gridSnap = Array(10).fill(null).map(()=>Array(10).fill(null));
         pos.forEach(p => { gridSnap[p.row_pos][p.col_pos] = p.student_id; });
         const visited = Array(10).fill(null).map(()=>Array(10).fill(false));
@@ -130,9 +131,16 @@ function SeatingArrangement() {
               if(!pairMap[sid]) pairMap[sid] = new Set();
               group.forEach(pid => { if(pid !== sid) pairMap[sid].add(pid); });
             });
+            if(group.length >= 2) {
+              const names = group.map(sid => { const s=students.find(st=>st.id===sid); return s?.name||sid; });
+              console.log('[짝중복] 그룹:', names.join('+'));
+            }
           }
         }
-      } catch{}
+        console.log('[짝중복] pairMap:', Object.keys(pairMap).length, '명');
+      } catch(e) { console.error('[짝중복] 오류:', e); }
+    } else {
+      console.log('[짝중복] 직전 배치 없음 (idx:', currentIdx, '총:', arrangements.length, ')');
     }
 
     setDuplicatePairMap(pairMap);
