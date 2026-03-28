@@ -185,6 +185,7 @@ export default function Nas() {
   const handleUpload = async (e) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
+    if (!currentRepo) { alert('라이브러리를 먼저 선택하세요.'); return; }
     const repoId = currentRepo.repo_id || currentRepo.id;
 
     setUploading(true);
@@ -197,12 +198,21 @@ export default function Nas() {
         const formData = new FormData();
         formData.append('file', file);
 
-        await nasAPI(
-          `/repos/${repoId}/upload?p=${encodeURIComponent(currentPath)}`,
-          { method: 'POST', body: formData },
+        const token = getToken();
+        const res = await fetch(
+          `${API_BASE}/nas/repos/${repoId}/upload?p=${encodeURIComponent(currentPath)}`,
+          {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: formData,
+          },
         );
+
+        if (!res.ok) {
+          const errText = await res.text();
+          throw new Error(`${res.status}: ${errText}`);
+        }
       }
-      // 목록 새로고침
       await loadDir(repoId, currentPath);
     } catch (err) {
       alert('업로드 실패: ' + err.message);
