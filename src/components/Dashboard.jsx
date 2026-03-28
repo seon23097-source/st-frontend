@@ -9,7 +9,7 @@ import Checklist from './Checklist';
 import SeatingArrangement from './SeatingArrangement';
 import BehaviorDevelopment from './BehaviorDevelopment';
 import GradeProcess from './GradeProcess';
-import Album from './Album';
+import Album from './Nas';
 import PresentationKing from './PresentationKing';
 import { categoriesAPI, studentsAPI, evaluationsAPI, removeToken, removeTeacher, getTeacher, attendanceAPI, currentSchoolYear } from '../utils/api';
 import * as XLSX from 'xlsx';
@@ -26,7 +26,7 @@ const MENU_TABS = [
   { key: 'checklist',        label: '체크리스트', icon: '✅',  path: '/checklist' },
   { key: 'behavior',         label: '행동발달',   icon: '🌱',  path: '/behavior' },
   { key: 'grade',            label: '성적처리',   icon: '📝',  path: '/grade' },
-  { key: 'album',            label: '앨범',       icon: '📸',  path: '/album' },
+  { key: 'nas',            label: 'NAS',       icon: '💾',  path: '/nas' },
 ];
 
 const DAY_KR = ['일', '월', '화', '수', '목', '금', '토'];
@@ -113,7 +113,7 @@ function Dashboard() {
     if (currentPath.startsWith('/checklist')) return 'checklist';
     if (currentPath.startsWith('/behavior')) return 'behavior';
     if (currentPath.startsWith('/grade')) return 'grade';
-    if (currentPath.startsWith('/album')) return 'album';
+    if (currentPath.startsWith('/nas')) return 'nas';
     return 'today';
   })();
   const activeTabInfo = MENU_TABS.find(t => t.key === activeTab);
@@ -554,7 +554,7 @@ function Dashboard() {
           <Route path="/checklist" element={<Checklist />} />
           <Route path="/behavior" element={<BehaviorDevelopment />} />
           <Route path="/grade" element={<GradeProcess />} />
-          <Route path="/album" element={<Album />} />
+          <Route path="/nas" element={<Nas />} />
           <Route path="/" element={
             <div className="welcome-screen">
               <div className="welcome-content">
