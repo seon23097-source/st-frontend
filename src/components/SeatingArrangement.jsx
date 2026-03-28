@@ -100,8 +100,7 @@ function SeatingArrangement() {
     const currentId = selectedArrangement?.id || Infinity;
     const prevArrangement = arrangements
       .filter(a => a.id !== currentId && a.id < currentId)
-      .sort((a,b) => b.id - a.id)[0]
-      || otherArrangements[0];  // fallback: 가장 최신
+      .sort((a,b) => b.id - a.id)[0];
 
     if(prevArrangement) {
       try {
