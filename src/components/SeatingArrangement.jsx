@@ -72,15 +72,19 @@ function SeatingArrangement() {
   // ── 중복 짝 감지 + 줄별 통계 계산 ──
   const computeDuplicatesAndRowStats = useCallback(async () => {
     if(!arrangements.length || !students.length) return;
-    const pairMap = {};  // studentId -> Set<partnerId>
+    const pairMap = {};  // studentId -> Set<partnerId> (최근 1개 배치만)
     const stats = {};    // studentId -> {row1:0, row2:0, row3:0, row4:0}
     students.forEach(s => { stats[s.id] = {row1:0, row2:0, row3:0, row4:0}; });
 
-    for(const arr of arrangements) {
-      if(arr.id === selectedArrangement?.id) continue;
+    // 현재 배치를 제외한 나머지 배치를 날짜순 정렬 (최신 먼저)
+    const otherArrangements = arrangements
+      .filter(a => a.id !== selectedArrangement?.id)
+      .sort((a,b) => new Date(b.created_at || b.id) - new Date(a.created_at || a.id));
+
+    for(const arr of otherArrangements) {
       try {
         const detail = await seatingAPI.getArrangementDetails(arr.id);
-        // 줄별 통계 계산 (행 0~1 = 4줄, 2~3 = 3줄, 4~5 = 2줄, 6~7 = 1줄, 기준: 칠판이 아래)
+        // 줄별 통계 계산 (전체 이전 배치)
         detail.positions.forEach(p => {
           if(stats[p.student_id]) {
             if(p.row_pos >= 6) stats[p.student_id].row1++;
@@ -89,22 +93,46 @@ function SeatingArrangement() {
             else stats[p.student_id].row4++;
           }
         });
-        // 짝 이력 수집
-        detail.positions.forEach(p => {
-          if(!pairMap[p.student_id]) pairMap[p.student_id] = new Set();
-        });
       } catch{}
     }
-    // 이력 API로 파트너 수집
-    for(const s of students) {
+
+    // 가장 최근 1개 배치에서만 짝 이력 수집
+    if(otherArrangements.length > 0) {
       try {
-        const history = await seatingAPI.getHistory(s.id);
-        if(!pairMap[s.id]) pairMap[s.id] = new Set();
-        (history||[]).forEach(h => {
-          (h.partner_ids||[]).forEach(pid => pairMap[s.id].add(pid));
-        });
+        const latestDetail = await seatingAPI.getArrangementDetails(otherArrangements[0].id);
+        // BFS로 그룹 찾기
+        const pos = latestDetail.positions;
+        const gridSnap = Array(10).fill(null).map(()=>Array(10).fill(null));
+        pos.forEach(p => { gridSnap[p.row_pos][p.col_pos] = p.student_id; });
+        const visited = Array(10).fill(null).map(()=>Array(10).fill(false));
+        for(let r=0; r<10; r++) {
+          for(let c=0; c<10; c++) {
+            if(!gridSnap[r][c] || visited[r][c]) continue;
+            // BFS로 인접 그룹 수집
+            const group = [];
+            const queue = [[r,c]];
+            visited[r][c] = true;
+            while(queue.length > 0) {
+              const [cr,cc] = queue.shift();
+              group.push(gridSnap[cr][cc]);
+              [[-1,0],[1,0],[0,-1],[0,1]].forEach(([dr,dc]) => {
+                const nr=cr+dr, nc=cc+dc;
+                if(nr>=0&&nr<10&&nc>=0&&nc<10&&gridSnap[nr][nc]&&!visited[nr][nc]) {
+                  visited[nr][nc] = true;
+                  queue.push([nr,nc]);
+                }
+              });
+            }
+            // 그룹 내 모든 학생을 서로의 파트너로 등록
+            group.forEach(sid => {
+              if(!pairMap[sid]) pairMap[sid] = new Set();
+              group.forEach(pid => { if(pid !== sid) pairMap[sid].add(pid); });
+            });
+          }
+        }
       } catch{}
     }
+
     setDuplicatePairMap(pairMap);
     setRowStats(stats);
   }, [arrangements, students, selectedArrangement]);

@@ -761,15 +761,15 @@
   left: 50%;
   transform: translateX(-50%);
   margin-bottom: 4px;
-  background: rgba(30, 30, 46, 0.92);
+  background: #1e1e2e;
   border-radius: 6px;
   padding: 6px 10px;
   z-index: 100;
-  min-width: 120px;
-  max-width: 180px;
+  min-width: 140px;
+  max-width: 220px;
   animation: popupFadeIn 0.15s;
   pointer-events: none;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
 }
 
 @keyframes popupFadeIn {
@@ -779,25 +779,26 @@
 
 .history-popup-item {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
-  padding: 2px 0;
+  padding: 3px 0;
   font-size: 11px;
-  line-height: 1.3;
+  line-height: 1.4;
 }
 
 .history-popup-item:not(:last-child) {
-  border-bottom: 1px solid rgba(255,255,255,0.1);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
 }
 
 .history-popup-date {
-  color: rgba(255,255,255,0.5);
+  color: rgba(255,255,255,0.65);
   font-size: 10px;
   flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .history-popup-names {
-  color: #fca5a5;
+  color: #fbbf24;
   font-weight: 600;
   font-size: 11px;
   white-space: nowrap;
@@ -1032,28 +1033,41 @@
   box-shadow: 0 2px 8px rgba(102,126,234,0.3);
 }
 
-/* ===== 중복 짝 경고 (빨간 배경) ===== */
+/* ===== 중복 짝 경고 (테두리 + 뱃지로 표시, 배경은 유지) ===== */
 .grid-cell.duplicate-pair {
-  background: #fee2e2 !important;
-  border-color: #ef4444 !important;
-  border-style: solid !important;
-  animation: duplicatePulse 2s infinite;
+  box-shadow: inset 0 0 0 2px #ef4444;
+  position: relative;
 }
 
-.grid-cell.duplicate-pair .student-card {
-  color: #991b1b !important;
-}
-
-@keyframes duplicatePulse {
-  0%, 100% { background: #fee2e2; }
-  50% { background: #fecaca; }
+.grid-cell.duplicate-pair::before {
+  content: '⚠';
+  position: absolute;
+  top: -5px;
+  left: -5px;
+  font-size: 11px;
+  z-index: 5;
+  background: #ef4444;
+  color: white;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+  line-height: 1;
 }
 
 .fullscreen .grid-cell.duplicate-pair {
-  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%) !important;
-  border: 3px solid #fca5a5 !important;
-  box-shadow: 0 2px 12px rgba(239,68,68,0.4);
-  animation: none;
+  box-shadow: inset 0 0 0 4px #fca5a5;
+}
+
+.fullscreen .grid-cell.duplicate-pair::before {
+  font-size: 12px;
+  width: 22px;
+  height: 22px;
+  top: -6px;
+  left: -6px;
 }
 
 /* ===== 떠드는 학생 표시 ===== */
