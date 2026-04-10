@@ -34,6 +34,7 @@ function SeatingArrangement() {
   // 떠드는 학생 표시
   const [noisyStudents, setNoisyStudents] = useState([]);  // [studentId, ...]
   const [noisyClickMode, setNoisyClickMode] = useState(false);
+  const [milkClickMode, setMilkClickMode] = useState(false);
   const [showNoisyAlert, setShowNoisyAlert] = useState(true);
 
   // 줄별 앉은 횟수 통계
@@ -182,6 +183,26 @@ function SeatingArrangement() {
   const isNoisyStudent = useCallback((studentId) => {
     return noisyStudents.includes(studentId);
   }, [noisyStudents]);
+
+  const isMilkStudent = useCallback((studentId) => {
+    const s = students.find(st => st.id === studentId);
+    return s?.drinks_milk === true;
+  }, [students]);
+
+  const toggleMilkStudent = useCallback(async (studentId) => {
+    const s = students.find(st => st.id === studentId);
+    if (!s) return;
+    const newVal = !s.drinks_milk;
+    try {
+      await studentsAPI.update(studentId, { drinks_milk: newVal });
+      setStudents(prev => prev.map(st =>
+        st.id === studentId ? { ...st, drinks_milk: newVal } : st
+      ));
+      showToast(newVal ? `${s.name} 우유 표시 추가 🥛` : `${s.name} 우유 표시 해제`, 'info');
+    } catch (e) {
+      showToast('저장 실패: ' + e.message, 'error');
+    }
+  }, [students, showToast]);
 
   // 떠드는 학생 인사이트 생성
   const getNoisyInsights = useCallback(() => {
@@ -527,6 +548,11 @@ function SeatingArrangement() {
                   title="떠드는 학생을 클릭하여 표시합니다">
                   🔊 {noisyClickMode ? '표시 중...' : '떠드는 학생'}
                 </button>
+                <button className={`btn btn-outline btn-sm ${milkClickMode?'milk-toggle-active':''}`}
+                  onClick={()=>setMilkClickMode(prev=>!prev)}
+                  title="우유 먹는 학생을 클릭하여 표시합니다 (모든 배치 공통 적용)">
+                  🥛 {milkClickMode ? '표시 중...' : '우유 학생'}
+                </button>
                 <button className="btn btn-outline btn-sm" disabled
                   style={{opacity:0.5, cursor:'not-allowed'}}>
                   🤖 AI 배치 (개발중)
@@ -581,16 +607,17 @@ function SeatingArrangement() {
                 <div className="grid-label grid-label-top">게시판 (뒤)</div>
                 <div className="grid-container">
                   <div className="grid-label grid-label-left">복도</div>
-                  <div className={`seating-grid ${noisyClickMode?'noisy-click-mode':''}`}>
+                  <div className={`seating-grid ${noisyClickMode?'noisy-click-mode':''} ${milkClickMode?'milk-click-mode':''}`}>
                     {grid.map((row,i)=>(
                       <div key={i} className="grid-row">
                         {row.map((cell,j)=>{
                           const cellType=cell?getCellType(i,j):null;
                           const dupPair=cell?isDuplicatePairCell(i,j):false;
                           const noisy=cell?isNoisyStudent(cell.id):false;
+                          const milk=cell?isMilkStudent(cell.id):false;
                           return (
                             <div key={`${i}-${j}`}
-                              className={`grid-cell ${cell?'occupied':''} ${cellType==='pair'?'has-pair':''} ${cellType==='group'?'has-group':''} ${dupPair?'duplicate-pair':''} ${noisy?'noisy-student':''}`}
+                              className={`grid-cell ${cell?'occupied':''} ${cellType==='pair'?'has-pair':''} ${cellType==='group'?'has-group':''} ${dupPair?'duplicate-pair':''} ${noisy?'noisy-student':''} ${milk?'milk-student':''}`}
                               onDragOver={handleDragOver}
                               onDrop={e=>handleDrop(e,i,j)}
                               onMouseEnter={()=>cell&&!draggedStudent&&checkHistory(i,j)}
@@ -599,15 +626,17 @@ function SeatingArrangement() {
                                 if(noisyClickMode && cell) {
                                   toggleNoisyStudent(cell.id);
                                   setShowNoisyAlert(true);
+                                } else if(milkClickMode && cell) {
+                                  toggleMilkStudent(cell.id);
                                 }
                               }}>
                               {cell&&(
                                 <div className="student-card-wrapper">
                                   <div className="student-card"
-                                    draggable={!noisyClickMode} onDragStart={e=>!noisyClickMode&&handleDragStart(e,cell,true,i,j)}>
+                                    draggable={!noisyClickMode&&!milkClickMode} onDragStart={e=>!noisyClickMode&&!milkClickMode&&handleDragStart(e,cell,true,i,j)}>
                                     {cell.name}
                                   </div>
-                                  {!noisyClickMode && <button className="btn-remove-cell" onClick={e=>{e.stopPropagation();handleRemoveFromGrid(i,j);}}>×</button>}
+                                  {!noisyClickMode&&!milkClickMode && <button className="btn-remove-cell" onClick={e=>{e.stopPropagation();handleRemoveFromGrid(i,j);}}>×</button>}
                                 </div>
                               )}
                               {historyPopup?.row===i&&historyPopup?.col===j&&historyPopup.history.length>0&&!draggedStudent&&(
@@ -686,9 +715,9 @@ function SeatingArrangement() {
                     {unassignedStudents.length===0
                       ? <div className="all-assigned-badge">✓ 모든 학생이 배치됐습니다</div>
                       : unassignedStudents.map(s=>(
-                        <div key={s.id} className={`student-card draggable ${isNoisyStudent(s.id)?'noisy-marked':''}`}
+                        <div key={s.id} className={`student-card draggable ${isNoisyStudent(s.id)?'noisy-marked':''} ${isMilkStudent(s.id)?'milk-marked':''}`}
                           draggable onDragStart={e=>handleDragStart(e,s)}>
-                          {s.student_number}. {s.name} {isNoisyStudent(s.id) && '🔊'}
+                          {s.student_number}. {s.name} {isNoisyStudent(s.id) && '🔊'}{isMilkStudent(s.id) && '🥛'}
                         </div>
                       ))
                     }
@@ -709,6 +738,22 @@ function SeatingArrangement() {
                           ) : null;
                         })}
                       </div>
+                    </div>
+                  )}
+
+                  {/* 우유 학생 현황 */}
+                  {students.filter(s=>s.drinks_milk).length > 0 && (
+                    <div className="row-stats-section">
+                      <h4>🥛 우유 먹는 학생 ({students.filter(s=>s.drinks_milk).length}명)</h4>
+                      <div style={{display:'flex',flexWrap:'wrap',gap:'4px',marginBottom:'8px'}}>
+                        {students.filter(s=>s.drinks_milk).map(s=>(
+                          <span key={s.id} className="chip chip-blue" style={{fontSize:'11px',padding:'4px 8px',background:'#e0f2fe',color:'#0369a1'}}>
+                            {s.name}
+                            <button className="chip-remove" onClick={()=>toggleMilkStudent(s.id)}>×</button>
+                          </span>
+                        ))}
+                      </div>
+                      <p style={{fontSize:'11px',color:'#6b7280',margin:0}}>※ 모든 자리배치에 공통 적용됩니다</p>
                     </div>
                   )}
 
@@ -776,8 +821,9 @@ function SeatingArrangement() {
                     {row.map((cell,j)=>{
                       const dupPair=cell?isDuplicatePairCell(i,j):false;
                       const noisy=cell?isNoisyStudent(cell.id):false;
+                      const milkFs=cell?isMilkStudent(cell.id):false;
                       return (
-                        <div key={`${i}-${j}`} className={`grid-cell ${cell?'occupied':'empty'} ${dupPair?'duplicate-pair':''} ${noisy?'noisy-student':''}`}>
+                        <div key={`${i}-${j}`} className={`grid-cell ${cell?'occupied':'empty'} ${dupPair?'duplicate-pair':''} ${noisy?'noisy-student':''} ${milkFs?'milk-student':''}`}>
                           {cell&&<div className="student-card-fullscreen">{cell.name}</div>}
                         </div>
                       );

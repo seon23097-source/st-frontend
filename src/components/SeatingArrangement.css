@@ -1253,3 +1253,51 @@
 .seating-grid.noisy-click-mode .grid-cell.occupied:hover {
   box-shadow: inset 0 0 0 3px #f59e0b;
 }
+
+/* ===== 우유 먹는 학생 표시 ===== */
+.grid-cell.milk-student {
+  box-shadow: inset 0 0 0 3px #38bdf8;
+}
+
+.grid-cell.milk-student::after {
+  content: '🥛';
+  position: absolute;
+  bottom: -4px;
+  right: -4px;
+  font-size: 12px;
+  z-index: 5;
+}
+
+.fullscreen .grid-cell.milk-student {
+  box-shadow: inset 0 0 0 4px #38bdf8;
+}
+
+.fullscreen .grid-cell.milk-student::after {
+  font-size: 18px;
+  bottom: -6px;
+  right: -6px;
+}
+
+.student-card.draggable.milk-marked {
+  border-left: 4px solid #38bdf8;
+  background: #f0f9ff;
+}
+
+.student-card.draggable.noisy-marked.milk-marked {
+  border-left: 4px solid #f59e0b;
+  border-right: 4px solid #38bdf8;
+}
+
+.milk-toggle-active {
+  background: #38bdf8 !important;
+  color: white !important;
+  border-color: #0284c7 !important;
+}
+
+.seating-grid.milk-click-mode .grid-cell.occupied {
+  cursor: crosshair;
+}
+
+.seating-grid.milk-click-mode .grid-cell.occupied:hover {
+  box-shadow: inset 0 0 0 3px #38bdf8;
+}
