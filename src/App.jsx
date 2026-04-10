@@ -126,23 +126,7 @@ function AppContent() {
   const [authState, setAuthState] = useState('loading');
 
   useEffect(() => {
-    injectThemeVariables(); // 👈 테마 변수 주입
-
-  // 👇 디버깅 코드 추가
-  setTimeout(() => {
-    const root = getComputedStyle(document.documentElement);
-    console.log('✅ CSS 변수 확인:');
-    console.log('--primary:', root.getPropertyValue('--primary'));
-    console.log('--bg-secondary:', root.getPropertyValue('--bg-secondary'));
-    console.log('--text-primary:', root.getPropertyValue('--text-primary'));
-    
-    const styleTag = document.getElementById('theme-variables');
-    console.log('✅ Style 태그 존재:', !!styleTag);
-    if (styleTag) {
-      console.log('✅ Style 내용:', styleTag.textContent.substring(0, 200));
-    }
-  }, 1000);
-
+    injectThemeVariables();
     checkAuth();
   }, []);
 
