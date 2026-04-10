@@ -6,6 +6,8 @@ function SeatingArrangement() {
   const [arrangements,        setArrangements]        = useState([]);
   const [selectedArrangement, setSelectedArrangement] = useState(null);
   const [students,            setStudents]            = useState([]);
+  const studentsRef = useRef([]);
+  useEffect(() => { studentsRef.current = students; }, [students]);
   const [grid,                setGrid]                = useState(Array(10).fill(null).map(()=>Array(10).fill(null)));
   const [unassignedStudents,  setUnassignedStudents]  = useState([]);
   const [loading,             setLoading]             = useState(true);
@@ -75,10 +77,10 @@ function SeatingArrangement() {
 
   // ── 중복 짝 감지 + 줄별 통계 계산 ──
   const computeDuplicatesAndRowStats = useCallback(async () => {
-    if(!arrangements.length || !students.length || !selectedArrangement) return;
+    if(!arrangements.length || !studentsRef.current.length || !selectedArrangement) return;
     const pairMap = {};
     const stats = {};
-    students.forEach(s => { stats[s.id] = {row1:0, row2:0, row3:0, row4:0}; });
+    studentsRef.current.forEach(s => { stats[s.id] = {row1:0, row2:0, row3:0, row4:0}; });
 
     // 모든 이전 배치에서 줄별 통계 + 짝 이력 동시 수집
     const noisyCount = {};  // {studentId: count}
@@ -144,7 +146,7 @@ function SeatingArrangement() {
 
     setDuplicatePairMap(pairMap);
     setRowStats(stats);
-  }, [arrangements, students, selectedArrangement, noisyStudents]);
+  }, [arrangements, selectedArrangement, noisyStudents]);
 
   useEffect(() => { if(selectedArrangement) computeDuplicatesAndRowStats(); }, [selectedArrangement, computeDuplicatesAndRowStats]);
 
