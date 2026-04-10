@@ -639,6 +639,8 @@ function SeatingArrangement() {
                                     {cell.name}
                                   </div>
                                   {!noisyClickMode&&!milkClickMode && <button className="btn-remove-cell" onClick={e=>{e.stopPropagation();handleRemoveFromGrid(i,j);}}>×</button>}
+                                  {noisy&&<span style={{position:'absolute',top:'-5px',right:'-5px',fontSize:'11px',zIndex:6,pointerEvents:'none'}}>🔊</span>}
+                                  {milk&&<span style={{position:'absolute',bottom:'-5px',right:'-5px',fontSize:'11px',zIndex:6,pointerEvents:'none'}}>🥛</span>}
                                 </div>
                               )}
                               {historyPopup?.row===i&&historyPopup?.col===j&&historyPopup.history.length>0&&!draggedStudent&&(
@@ -826,7 +828,13 @@ function SeatingArrangement() {
                       const milkFs=cell?isMilkStudent(cell.id):false;
                       return (
                         <div key={`${i}-${j}`} className={`grid-cell ${cell?'occupied':'empty'} ${dupPair?'duplicate-pair':''} ${noisy?'noisy-student':''} ${milkFs?'milk-student':''}`}>
-                          {cell&&<div className="student-card-fullscreen">{cell.name}</div>}
+                          {cell&&(
+                            <div style={{position:'relative',width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center'}}>
+                              <div className="student-card-fullscreen">{cell.name}</div>
+                              {noisy&&<span style={{position:'absolute',top:'-6px',right:'-6px',fontSize:'16px',zIndex:6,pointerEvents:'none'}}>🔊</span>}
+                              {milkFs&&<span style={{position:'absolute',bottom:'-6px',right:'-6px',fontSize:'16px',zIndex:6,pointerEvents:'none'}}>🥛</span>}
+                            </div>
+                          )}
                         </div>
                       );
                     })}

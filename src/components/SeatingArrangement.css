@@ -1328,3 +1328,11 @@
   font-size: 18px;
   z-index: 5;
 }
+
+/* ===== 아이콘 pseudo-element 전부 제거 (JSX로 대체) ===== */
+.grid-cell.noisy-student::after { content: none; }
+.grid-cell.milk-student::after { content: none; }
+.grid-cell.milk-student::before { content: none; }
+.fullscreen .grid-cell.noisy-student::after { content: none; }
+.fullscreen .grid-cell.milk-student::after { content: none; }
+.fullscreen .grid-cell.milk-student::before { content: none; }
