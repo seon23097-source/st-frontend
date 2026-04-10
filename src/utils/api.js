@@ -66,8 +66,6 @@ export const studentsAPI = {
   activate:   (id) => api.patch(`/students/${id}/activate`),
   delete: (id, year) =>
     api.delete(`/students/${id}`, { params: { year: year || currentSchoolYear() } }),
-  remove: (id, year) =>
-    api.delete(`/students/${id}`, { params: { year: year || currentSchoolYear() } }),
 };
 
 // ── Categories API ─────────────────────────────────────────
