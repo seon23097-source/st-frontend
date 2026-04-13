@@ -1,6 +1,7 @@
 import axios from 'axios';
 
 const API_BASE = 'https://st.looool.xyz/api';
+export const API_ORIGIN = 'https://st.looool.xyz'; // socket.io용
 
 // ── 토큰 관리 ─────────────────────────────────────────────
 export const saveToken    = (token)  => localStorage.setItem('auth_token', token);
@@ -202,8 +203,25 @@ export const presentationAPI = {
   toggleSpecial: (studentId, date, arrangementId) =>
     api.post('/presentations/toggle-special', { student_id: studentId, date, arrangement_id: arrangementId }),
   saveDaily: (entries) => api.put('/presentations/daily', { entries }),
+  // 신규: 관리 모달용
+  updateDaily: (studentId, date, payload) =>
+    api.put(`/presentations/daily/${studentId}`, { date, ...payload }),
+  deleteDaily: (studentId, date) =>
+    api.delete(`/presentations/daily/${studentId}`, { params: { date } }),
   getWeekly: () => api.get('/presentations/weekly'),
   getStats:  () => api.get('/presentations/stats'),
+};
+
+// ── Groups API (신규) ──────────────────────────────────────
+export const groupsAPI = {
+  list: (arrangementId) =>
+    api.get('/groups', { params: { arrangement_id: arrangementId } }),
+  scores: (arrangementId, date) =>
+    api.get('/groups/scores', { params: { arrangement_id: arrangementId, date } }),
+  create: (arrangementId, payload) =>
+    api.post('/groups', { arrangement_id: arrangementId, ...payload }),
+  update: (id, payload) => api.put(`/groups/${id}`, payload),
+  remove: (id) => api.delete(`/groups/${id}`),
 };
 
 // ── Today API ──────────────────────────────────────────────

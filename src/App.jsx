@@ -6,6 +6,7 @@ import InitialSetup from './components/InitialSetup';
 import Dashboard from './components/Dashboard';
 import GoogleCallback from './components/GoogleCallback';
 import { authAPI, studentsAPI, isAuthenticated, saveTeacher } from './utils/api';
+import PresentationFullscreen from './components/PresentationFullscreen';
 
 // 🎨 테마 CSS 변수 주입
 const injectThemeVariables = () => {
@@ -185,7 +186,8 @@ function AppContent() {
   return (
     <Routes>
       <Route path="/auth/callback" element={<GoogleCallback onLogin={() => checkAuth()} />} />
-      <Route path="/*" element={<Dashboard />} />
+      <Route path="/presentation-fullscreen" element={<PresentationFullscreen />} />
+      <Route path="/*" element={<Dashboard />} />        
     </Routes>
   );
 }

@@ -1001,3 +1001,26 @@
   .pk-stats-grid { grid-template-columns: 1fr 1fr; }
   .pk-hints { display: none; }
 }
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+/* ▼ 발표왕 v2 추가: 모둠/전체화면 버튼      */
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+.pk-btn-groups {
+  background: #6BCB77;
+  color: white;
+  border-color: #6BCB77;
+}
+.pk-btn-groups:hover {
+  background: #5BB867;
+  border-color: #5BB867;
+}
+
+.pk-btn-fullscreen {
+  background: #4ECDC4;
+  color: white;
+  border-color: #4ECDC4;
+}
+.pk-btn-fullscreen:hover {
+  background: #3DB8B0;
+  border-color: #3DB8B0;
+}

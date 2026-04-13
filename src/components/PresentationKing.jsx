@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { seatingAPI, studentsAPI } from '../utils/api';
-import { presentationAPI } from '../utils/api';
+import { seatingAPI, studentsAPI, presentationAPI } from '../utils/api';
+import { getSocket } from '../utils/socket';
+import GroupsModal from './GroupsModal';
 import './PresentationKing.css';
 
 const BOOK_COLORS = [['#FF6B6B','#C0392B'],['#4ECDC4','#1A8A83'],['#FFD93D','#D4A900'],['#6BCB77','#2E8B3E'],['#A78BFA','#7C3AED']];
@@ -45,6 +46,7 @@ export default function PresentationKing() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showAdmin, setShowAdmin] = useState(false);
+  const [showGroups, setShowGroups] = useState(false);
   const [adminView, setAdminView] = useState('daily');
   const [adminDate, setAdminDate] = useState(new Date().toISOString().split('T')[0]);
   const [adminData, setAdminData] = useState([]);
@@ -52,6 +54,7 @@ export default function PresentationKing() {
   const [toast, setToast] = useState(null);
   const toastTimer = useRef(null);
   const rightClickGuard = useRef(false);
+  const socketRef = useRef(null);
   const LAST_ARR_KEY = 'pk_last_arrangement_id';
 
   const showToast = useCallback((msg, type='info') => {
@@ -77,6 +80,30 @@ export default function PresentationKing() {
   useEffect(() => {
     if (selectedArrangement && students.length > 0) { loadDailyData(selectedDate); loadWeeklyData(); }
   }, [selectedDate, selectedArrangement, students]);
+
+  // ─── Socket.IO 실시간 구독 (전체화면 새 창과 동기화) ───
+  useEffect(() => {
+    const sock = getSocket();
+    if (!sock) return;
+    socketRef.current = sock;
+
+    const onUpdate = (payload) => {
+      if (payload.date && payload.date !== selectedDate) return;
+      if (payload.type === 'increment' || payload.type === 'decrement' || payload.type === 'special') {
+        setPresentData((prev) => {
+          const updated = { ...prev, [payload.student_id]: { today: payload.count, special: payload.special } };
+          localStorage.setItem(`pres_${selectedDate}`, JSON.stringify(updated));
+          return updated;
+        });
+        loadWeeklyData();
+      } else if (payload.type === 'bulk') {
+        loadDailyData(selectedDate);
+        loadWeeklyData();
+      }
+    };
+    sock.on('presentation:update', onUpdate);
+    return () => { sock.off('presentation:update', onUpdate); };
+  }, [selectedDate]);
 
   const loadArrangementGrid = async (id) => {
     try {
@@ -160,6 +187,18 @@ export default function PresentationKing() {
   const handleSave = async () => { await saveDailyData(selectedDate); await loadWeeklyData(); showToast('저장 완료! ✓', 'success'); };
   const handleDateChange = (d) => { setSelectedDate(d); setShowDatePicker(false); setUndoStack([]); };
 
+  // ─── 전체화면 새 창 열기 ──────────────────────
+  const openFullscreen = () => {
+    if (!selectedArrangement) {
+      showToast('자리배치를 먼저 선택하세요', 'error');
+      return;
+    }
+    const url = `${window.location.origin}${import.meta.env?.BASE_URL || '/'}#/presentation-fullscreen?arrangement_id=${selectedArrangement.id}&date=${selectedDate}`;
+    const w = window.screen.availWidth;
+    const h = window.screen.availHeight;
+    window.open(url, 'pf_' + selectedArrangement.id, `width=${w},height=${h},left=0,top=0,toolbar=no,menubar=no,location=no`);
+  };
+
   const loadAdminData = async () => { try { setAdminData(await presentationAPI.getDaily(adminDate)); } catch(e) { showToast('로드 실패','error'); setAdminData([]); } };
   const loadStats = async () => { try { setStatsData(await presentationAPI.getStats()); } catch(e) { showToast('통계 로드 실패','error'); } };
 
@@ -201,6 +240,8 @@ export default function PresentationKing() {
         </div>
         <div className="pk-header-right">
           {undoStack.length > 0 && <button className="pk-btn pk-btn-undo" onClick={handleUndo}>↩ 되돌리기 ({undoStack.length})</button>}
+          <button className="pk-btn pk-btn-groups" onClick={() => setShowGroups(true)}>🌱 모둠</button>
+          <button className="pk-btn pk-btn-fullscreen" onClick={openFullscreen}>🖥️ 전체화면</button>
           <button className="pk-btn pk-btn-save" onClick={handleSave}>💾 저장</button>
           <button className="pk-btn pk-btn-admin" onClick={() => setShowAdmin(true)}>⚙️ 관리</button>
         </div>
@@ -287,6 +328,15 @@ export default function PresentationKing() {
 
       {toast && <div className={`pk-toast pk-toast-${toast.type}`}>{toast.msg}</div>}
 
+      {showGroups && selectedArrangement && (
+        <GroupsModal
+          arrangement={selectedArrangement}
+          students={students}
+          onClose={() => setShowGroups(false)}
+          onChanged={() => { /* 메인 화면에서는 모둠 색을 안 쓰므로 별도 갱신 불필요 */ }}
+        />
+      )}
+
       {showAdmin && (
         <div className="pk-modal-overlay" onClick={() => setShowAdmin(false)}>
           <div className="pk-modal pk-modal-wide" onClick={e => e.stopPropagation()}>
@@ -334,25 +384,6 @@ export default function PresentationKing() {
                       <div className="pk-stats-card pk-stats-today"><div className="pk-stats-emoji">📅</div><h3>오늘</h3><div className="pk-stats-number">{statsData.today_total||0}</div><div className="pk-stats-label">총 발표</div><div className="pk-stats-top">Top: {statsData.today_top?.name||'-'} ({statsData.today_top?.count||0}회)</div></div>
                       <div className="pk-stats-card pk-stats-week"><div className="pk-stats-emoji">📆</div><h3>이번 주</h3><div className="pk-stats-number">{statsData.week_total||0}</div><div className="pk-stats-label">총 발표</div><div className="pk-stats-top">Top: {statsData.week_top?.name||'-'} ({statsData.week_top?.count||0}회)</div></div>
                       <div className="pk-stats-card pk-stats-month"><div className="pk-stats-emoji">📋</div><h3>이번 달</h3><div className="pk-stats-number">{statsData.month_total||0}</div><div className="pk-stats-label">총 발표</div><div className="pk-stats-top">Top: {statsData.month_top?.name||'-'} ({statsData.month_top?.count||0}회)</div></div>
-                    </div>
-                    <div className="pk-stats-trend">
-                      <h3>📈 학생별 발표 추세 (최근 7일)</h3>
-                      <div className="pk-trend-list">
-                        {(statsData.trends||[]).map(t => (
-                          <div key={t.student_id} className="pk-trend-item">
-                            <span className="pk-trend-name">{t.name}</span>
-                            <div className="pk-trend-bars">
-                              {(t.daily||[]).slice(-7).map((d,i) => (
-                                <div key={i} className="pk-trend-day">
-                                  <div className="pk-trend-bar" style={{height:`${Math.max(4,Math.min(40,(d.count||0)*10))}px`,background:d.count>0?'#4ECDC4':'#e2e8f0'}} title={`${d.date}: ${d.count}회`}/>
-                                  <span className="pk-trend-date">{String(d.date).slice(5)}</span>
-                                </div>
-                              ))}
-                            </div>
-                            <span className={`pk-trend-arrow ${t.trend}`}>{t.trend==='up'?'▲':t.trend==='down'?'▼':'─'}</span>
-                          </div>
-                        ))}
-                      </div>
                     </div>
                   </>) : <div className="pk-admin-empty">통계 로딩 중...</div>}
                 </div>
