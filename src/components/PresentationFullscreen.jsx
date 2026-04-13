@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { seatingAPI, studentsAPI, presentationAPI, groupsAPI, getToken } from '../utils/api';
 import { getSocket } from '../utils/socket';
 import './PresentationFullscreen.css';
@@ -114,9 +115,9 @@ function PlantPot({ count, color, isSpecial }) {
 
 // ─── 메인 컴포넌트 ──────────────────────────────────────────
 export default function PresentationFullscreen() {
-  const params = new URLSearchParams(window.location.search);
-  const arrangementId = parseInt(params.get('arrangement_id'));
-  const initialDate = params.get('date') || new Date().toISOString().split('T')[0];
+  const [searchParams] = useSearchParams();
+  const arrangementId = parseInt(searchParams.get('arrangement_id'));
+  const initialDate = searchParams.get('date') || new Date().toISOString().split('T')[0];
 
   const [arrangement, setArrangement] = useState(null);
   const [grid, setGrid] = useState(Array(10).fill(null).map(() => Array(10).fill(null)));
