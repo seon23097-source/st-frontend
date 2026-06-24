@@ -159,16 +159,35 @@ function EvaluationManager({ students, categories, onCategoryUpdate }) {
           evaluation_date: col.date,
           title: col.title
         });
+        // 전체 리로드 대신 해당 레코드만 로컬에서 갱신
+        setEvaluations(prev => prev.map(e =>
+          e.id === recordId
+            ? { ...e, score, evaluation_date: col.date, title: col.title }
+            : e
+        ));
       } else {
-        await evaluationsAPI.create({
+        const created = await evaluationsAPI.create({
           student_id: studentId,
           category_id: parseInt(categoryId),
           score,
           evaluation_date: col.date,
           title: col.title
         });
+        if (created && created.id != null) {
+          // 서버가 돌려준 새 레코드를 로컬에 추가
+          setEvaluations(prev => [...prev, {
+            id: created.id,
+            student_id: studentId,
+            category_id: parseInt(categoryId),
+            score,
+            evaluation_date: col.date,
+            title: col.title,
+          }]);
+        } else {
+          // 서버가 새 id를 안 주면 안전하게 1회만 동기화
+          await loadCategoryData();
+        }
       }
-      await loadCategoryData();
       setEditingCell(null);
       setInputValue('');
     } catch (error) {
@@ -181,7 +200,8 @@ function EvaluationManager({ students, categories, onCategoryUpdate }) {
     if (!confirm('이 점수를 삭제하시겠습니까?')) return;
     try {
       await evaluationsAPI.delete(recordId);
-      await loadCategoryData();
+      // 전체 리로드 대신 해당 레코드만 로컬에서 제거
+      setEvaluations(prev => prev.filter(ev => ev.id !== recordId));
     } catch (error) {
       alert(error.message || '점수 삭제에 실패했습니다.');
     }
