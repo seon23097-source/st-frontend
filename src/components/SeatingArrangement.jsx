@@ -2,10 +2,13 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { seatingAPI, studentsAPI, currentSchoolYear } from '../utils/api';
 import './SeatingArrangement.css';
 
-// pairMap[a] 에 b 를 한 번 더 만난 것으로 기록한다. {studentId: Map<partnerId, count>}
-function bumpPair(pairMap, a, b) {
+// pairMap[a] 에 'b 와 언제 짝이었나'를 쌓는다. {studentId: Map<partnerId, [배치제목, ...]}
+// 횟수만 세면 "왜 중복이라는 거냐"에 답할 수 없어서 어느 배치였는지까지 남긴다.
+function bumpPair(pairMap, a, b, label) {
   if(!pairMap[a]) pairMap[a] = new Map();
-  pairMap[a].set(b, (pairMap[a].get(b) || 0) + 1);
+  const list = pairMap[a].get(b) || [];
+  list.push(label);
+  pairMap[a].set(b, list);
 }
 
 function SeatingArrangement() {
@@ -113,7 +116,7 @@ function SeatingArrangement() {
     for (let i = 0; i < targets.length; i += 6) {
       const chunk = targets.slice(i, i + 6);
       details.push(...await Promise.all(
-        chunk.map(a => fetchDetail(a.id).catch(() => null)),
+        chunk.map(a => fetchDetail(a.id).then(d => d && { ...d, _label: a.title }).catch(() => null)),
       ));
     }
     const failedCount = details.filter(d => !d).length;
@@ -159,8 +162,8 @@ function SeatingArrangement() {
           // (서버 seating_history 도 group_type 으로 'pair'/'group' 을 구분해 저장한다).
           if(group.length === 2) {
             const [a, b] = group;
-            bumpPair(pairMap, a, b);
-            bumpPair(pairMap, b, a);
+            bumpPair(pairMap, a, b, detail._label);
+            bumpPair(pairMap, b, a, detail._label);
           }
         }
       }
@@ -197,6 +200,30 @@ function SeatingArrangement() {
     const myHistory = duplicatePairMap[cur.id];
     if(!myHistory || myHistory.size === 0) return false;
     return group.some(g => g.student && g.student.id !== cur.id && myHistory.has(g.student.id));
+  }, [grid, duplicatePairMap]);
+
+  // 현재 배치에서 '이전에 짝이었던' 조합과 그게 어느 배치였는지.
+  // ⚠ 만 띄우면 왜 중복인지 알 수 없어서, 근거를 배너로 같이 보여준다.
+  const currentDuplicatePairs = useCallback(() => {
+    const seen = new Set(); const out = [];
+    for(let i=0;i<10;i++) for(let j=0;j<10;j++) {
+      const cur = grid[i]?.[j];
+      if(!cur) continue;
+      const hist = duplicatePairMap[cur.id];
+      if(!hist || hist.size === 0) continue;
+      const group = findGroupForCell(i, j);
+      if(group.length < 2) continue;
+      group.forEach(g => {
+        if(!g.student || g.student.id === cur.id) return;
+        const when = hist.get(g.student.id);
+        if(!when || !when.length) return;
+        const key = [cur.id, g.student.id].sort((x,y)=>x-y).join('-');
+        if(seen.has(key)) return;
+        seen.add(key);
+        out.push({ key, a: cur.name, b: g.student.name, when });
+      });
+    }
+    return out.sort((x,y) => y.when.length - x.when.length);
   }, [grid, duplicatePairMap]);
 
   // 떠드는 학생 토글
@@ -300,7 +327,7 @@ function SeatingArrangement() {
     const hist=duplicatePairMap[cur.id];
     if(!hist||hist.size===0){ setHistoryPopup(null); return; }
     const partners=[...hist.entries()]
-      .map(([pid,count])=>({ id:pid, count, name: students.find(s=>s.id===pid)?.name || `${pid}번` }))
+      .map(([pid,when])=>({ id:pid, count:when.length, when, name: students.find(s=>s.id===pid)?.name || `${pid}번` }))
       .sort((a,b)=> b.count-a.count || a.name.localeCompare(b.name,'ko'));
     setHistoryPopup({row, col, studentName: cur.name, partners});
   };
@@ -413,7 +440,7 @@ function SeatingArrangement() {
       const allToArrange=[...fairOrderedRegulars];
       // 이미 계산된 duplicatePairMap 사용 (모든 이전 배치의 짝 이력)
       const shouldSeparate=(id1,id2)=>separateStudents.some(pair=>(pair[0]===id1&&pair[1]===id2)||(pair[0]===id2&&pair[1]===id1));
-      const pairCount=(id1,id2)=>duplicatePairMap[id1]?.get(id2) || 0;  // 몇 번 짝이었나 (0 = 처음)
+      const pairCount=(id1,id2)=>(duplicatePairMap[id1]?.get(id2) || []).length;  // 몇 번 짝이었나 (0 = 처음)
       const isCellEmpty=(r,c)=>r>=0&&r<8&&c>=0&&c<10&&!newGrid[r][c]; // 행 0~7만 사용 (8,9행 제외)
       let si=0;
       let reusedPairs=0, forcedPairs=0;  // 조용히 떨어지지 않도록 집계
@@ -621,6 +648,24 @@ function SeatingArrangement() {
                       return s ? <span key={n.id}>{i>0 && ', '}<strong>{s.name}</strong>({n.count}회)</span> : null;
                     })}
                     {' — 자리 배치 시 분리를 권장합니다.'}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* 이전에 짝이었던 조합 — ⚠ 의 근거 */}
+            {currentDuplicatePairs().length > 0 && (
+              <div className="noisy-alert-banner" style={{marginBottom:'8px',background:'linear-gradient(90deg,#fee2e2,#fff1f2)',border:'1px solid #ef4444'}}>
+                <span className="noisy-alert-icon">⚠️</span>
+                <div className="noisy-alert-content">
+                  <div className="noisy-alert-title">이전에 짝이었던 조합 ({currentDuplicatePairs().length}쌍)</div>
+                  <div className="noisy-alert-text">
+                    {currentDuplicatePairs().map(d => (
+                      <div key={d.key} style={{lineHeight:1.7}}>
+                        <strong>{d.a} ↔ {d.b}</strong>
+                        <span style={{opacity:0.85}}>{' — '}{d.when.join(', ')}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>
