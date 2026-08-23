@@ -137,34 +137,22 @@ function SeatingArrangement() {
       (detail.preferences?.noisy_students || []).forEach(sid => {
         noisyCount[sid] = (noisyCount[sid] || 0) + 1;
       });
-      // 짝 이력 (BFS)
+      // 짝 이력 — '바로 옆에 앉았는가'만 본다(상하좌우 직접 인접).
+      // 예전에는 연결군이 정확히 2명일 때만 기록했는데, 표시 쪽은 연결군 전체를
+      // 검사해서 3연속의 양 끝처럼 붙지도 않은 조합이 중복으로 잡혔다.
+      // 오른쪽·아래만 보면 같은 쌍을 두 번 세지 않는다.
       const gridSnap = Array(10).fill(null).map(()=>Array(10).fill(null));
       detail.positions.forEach(p => { gridSnap[p.row_pos][p.col_pos] = p.student_id; });
-      const visited = Array(10).fill(null).map(()=>Array(10).fill(false));
       for(let r=0; r<10; r++) {
         for(let c=0; c<10; c++) {
-          if(!gridSnap[r][c] || visited[r][c]) continue;
-          const group = [];
-          const queue = [[r,c]];
-          visited[r][c] = true;
-          while(queue.length > 0) {
-            const [cr,cc] = queue.shift();
-            group.push(gridSnap[cr][cc]);
-            [[-1,0],[1,0],[0,-1],[0,1]].forEach(([dr,dc]) => {
-              const nr=cr+dr, nc=cc+dc;
-              if(nr>=0&&nr<10&&nc>=0&&nc<10&&gridSnap[nr][nc]&&!visited[nr][nc]) {
-                visited[nr][nc] = true;
-                queue.push([nr,nc]);
-              }
-            });
-          }
-          // 2인 짝만 이력으로 센다. 3인 이상 모둠 동석은 짝이 아니다
-          // (서버 seating_history 도 group_type 으로 'pair'/'group' 을 구분해 저장한다).
-          if(group.length === 2) {
-            const [a, b] = group;
+          const a = gridSnap[r][c];
+          if(!a) continue;
+          [[0,1],[1,0]].forEach(([dr,dc]) => {
+            const b = gridSnap[r+dr]?.[c+dc];
+            if(!b) return;
             bumpPair(pairMap, a, b, detail._label);
             bumpPair(pairMap, b, a, detail._label);
-          }
+          });
         }
       }
     }
@@ -191,15 +179,17 @@ function SeatingArrangement() {
 
   useEffect(() => { if(selectedArrangement) computeDuplicatesAndRowStats(); }, [selectedArrangement, computeDuplicatesAndRowStats]);
 
-  // 현재 그리드에서 중복 짝인 셀 판별
+  // 현재 그리드에서 중복 짝인 셀 판별 — 바로 옆(상하좌우)만 본다.
+  const DIRS = [[-1,0],[1,0],[0,-1],[0,1]];
   const isDuplicatePairCell = useCallback((row, col) => {
     const cur = grid[row]?.[col];
     if(!cur) return false;
-    const group = findGroupForCell(row, col);
-    if(group.length < 2) return false;
     const myHistory = duplicatePairMap[cur.id];
     if(!myHistory || myHistory.size === 0) return false;
-    return group.some(g => g.student && g.student.id !== cur.id && myHistory.has(g.student.id));
+    return DIRS.some(([dr,dc]) => {
+      const n = grid[row+dr]?.[col+dc];
+      return n && myHistory.has(n.id);
+    });
   }, [grid, duplicatePairMap]);
 
   // 현재 배치에서 '이전에 짝이었던' 조합과 그게 어느 배치였는지.
@@ -211,16 +201,15 @@ function SeatingArrangement() {
       if(!cur) continue;
       const hist = duplicatePairMap[cur.id];
       if(!hist || hist.size === 0) continue;
-      const group = findGroupForCell(i, j);
-      if(group.length < 2) continue;
-      group.forEach(g => {
-        if(!g.student || g.student.id === cur.id) return;
-        const when = hist.get(g.student.id);
+      DIRS.forEach(([dr,dc]) => {
+        const n = grid[i+dr]?.[j+dc];
+        if(!n) return;
+        const when = hist.get(n.id);
         if(!when || !when.length) return;
-        const key = [cur.id, g.student.id].sort((x,y)=>x-y).join('-');
+        const key = [cur.id, n.id].sort((x,y)=>x-y).join('-');
         if(seen.has(key)) return;
         seen.add(key);
-        out.push({ key, a: cur.name, b: g.student.name, when });
+        out.push({ key, a: cur.name, b: n.name, when });
       });
     }
     return out.sort((x,y) => y.when.length - x.when.length);
