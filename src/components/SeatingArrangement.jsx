@@ -102,7 +102,13 @@ function SeatingArrangement() {
     // 모든 이전 배치에서 줄별 통계 + 짝 이력 수집.
     // 캐시가 대부분 받아내고, 남은 것도 한꺼번에 던지지 않고 6개씩 끊는다.
     // 전부 동시에 던졌더니 배치를 빠르게 여러 번 고를 때 429 가 났다(증보 II §19).
-    const targets = arrangements.filter(a => a.id !== selectedArrangement.id);
+    // '이전' 배치만 본다. 예전에는 현재 것만 빼고 전부를 봐서, 과거 배치를 열면
+    // 그보다 나중에 만들어진 배치까지 짝 이력에 섞였다 — 그날 기준으로는 아직
+    // 일어나지 않은 짝이 중복으로 표시됐다(줄 통계·떠드는 학생 집계도 같은 문제).
+    const cutoff = new Date(selectedArrangement.created_at).getTime();
+    const targets = arrangements.filter(a =>
+      a.id !== selectedArrangement.id && new Date(a.created_at).getTime() < cutoff,
+    );
     const details = [];
     for (let i = 0; i < targets.length; i += 6) {
       const chunk = targets.slice(i, i + 6);
