@@ -484,7 +484,21 @@ function SeatingArrangement() {
             if(si>=allToArrange.length&&fq.length===0) break;
             const gm=[];
             while(fq.length>0&&gm.length<groupSize) gm.push(fq.shift());
-            while(gm.length<groupSize&&si<allToArrange.length) gm.push(allToArrange[si++]);
+            // 모둠은 4명이 서로 다 붙어 앉으므로, 후보 하나를 고를 때마다 '이미 이 모둠에
+            // 들어간 전원'과 대조해야 한다. 짝 배치는 s1 한 명만 보면 되지만 여기는 아니다.
+            // 예전에는 allToArrange[si++] 로 순서대로 집어넣기만 해서, 분리하라고 지정한
+            // 학생끼리 같은 모둠에 나란히 앉을 수 있었다.
+            while(gm.length<groupSize&&si<allToArrange.length){
+              let pick=-1, best=Infinity;
+              for(let i=si;i<allToArrange.length;i++){
+                const c=allToArrange[i];
+                if(gm.some(m=>shouldSeparate(m.id,c.id))) continue;        // 분리조건은 어기지 않는다
+                const n=gm.reduce((s,m)=>s+pairCount(m.id,c.id),0);        // 모둠 전원과 몇 번 옆자리였나
+                if(n<best){ best=n; pick=i; if(n===0) break; }
+              }
+              if(pick<0){ gm.push(allToArrange[si++]); forcedPairs++; }     // 지킬 후보가 없다 — 토스트로 알린다
+              else { if(best>0) reusedPairs++; gm.push(allToArrange.splice(pick,1)[0]); }
+            }
             if(gm.length===0) continue;
             let mi=0;
             for(let r=0;r<gr;r++){
@@ -499,8 +513,9 @@ function SeatingArrangement() {
       const assignedIds=newGrid.flat().filter(c=>c).map(s=>s.id);
       setUnassignedStudents(allStudents.filter(s=>!assignedIds.includes(s.id)));
       const notes=[];
-      if(reusedPairs>0) notes.push(`이전 짝 재사용 ${reusedPairs}쌍`);
-      if(forcedPairs>0) notes.push(`분리조건 미충족 ${forcedPairs}쌍`);
+      // 모둠 배치에서는 '쌍'이 아니라 '모둠에 넣은 학생' 단위로 세므로 단위를 건으로 통일한다.
+      if(reusedPairs>0) notes.push(`이전 짝 재사용 ${reusedPairs}건`);
+      if(forcedPairs>0) notes.push(`분리조건 미충족 ${forcedPairs}건`);
       showToast(
         notes.length
           ? `자동 배치 완료 (${notes.join(', ')}). 저장 버튼을 눌러주세요.`
