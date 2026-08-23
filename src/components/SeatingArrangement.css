@@ -1062,39 +1062,17 @@
 
 /* ===== 중복 짝 경고 (테두리 + 뱃지로 표시, 배경은 유지) ===== */
 .grid-cell.duplicate-pair {
-  box-shadow: inset 0 0 0 2px #ef4444;
+  /* box-shadow 로 그리면 .milk-student / .noisy-student 의 box-shadow 와 같은 속성을
+     두고 다투다 뒤에 오는 쪽에 진다 — 우유 학생은 중복 짝이어도 표시가 사라졌다.
+     outline 은 다른 속성이라 셋이 함께 보인다. */
+  outline: 2px solid #ef4444;
+  outline-offset: 1px;
   position: relative;
 }
 
-.grid-cell.duplicate-pair::before {
-  content: '⚠';
-  position: absolute;
-  top: -5px;
-  left: -5px;
-  font-size: 11px;
-  z-index: 5;
-  background: #ef4444;
-  color: white;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 9px;
-  line-height: 1;
-}
-
 .fullscreen .grid-cell.duplicate-pair {
-  box-shadow: inset 0 0 0 4px #fca5a5;
-}
-
-.fullscreen .grid-cell.duplicate-pair::before {
-  font-size: 12px;
-  width: 22px;
-  height: 22px;
-  top: -6px;
-  left: -6px;
+  outline: 4px solid #fca5a5;
+  outline-offset: 1px;
 }
 
 /* ===== 떠드는 학생 표시 ===== */

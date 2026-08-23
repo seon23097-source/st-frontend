@@ -684,6 +684,7 @@ function SeatingArrangement() {
                                     {cell.name}
                                   </div>
                                   {!noisyClickMode&&!milkClickMode && <button className="btn-remove-cell" onClick={e=>{e.stopPropagation();handleRemoveFromGrid(i,j);}}>×</button>}
+                                  {dupPair&&<span title="이전에 짝이었던 학생과 붙어 있음" style={{position:'absolute',top:'-5px',left:'-5px',width:'16px',height:'16px',borderRadius:'50%',background:'#ef4444',color:'#fff',fontSize:'10px',display:'flex',alignItems:'center',justifyContent:'center',zIndex:6,pointerEvents:'none'}}>⚠</span>}
                                   {noisy&&<span style={{position:'absolute',top:'-5px',right:'-5px',fontSize:'11px',zIndex:6,pointerEvents:'none'}}>🔊</span>}
                                   {milk&&<span style={{position:'absolute',bottom:'-5px',right:'-5px',fontSize:'11px',zIndex:6,pointerEvents:'none'}}>🥛</span>}
                                 </div>
@@ -872,6 +873,7 @@ function SeatingArrangement() {
                           {cell&&(
                             <div style={{position:'relative',width:'100%',height:'100%',display:'flex',alignItems:'center',justifyContent:'center'}}>
                               <div className="student-card-fullscreen">{cell.name}</div>
+                              {dupPair&&<span title="이전에 짝이었던 학생과 붙어 있음" style={{position:'absolute',top:'-7px',left:'-7px',width:'22px',height:'22px',borderRadius:'50%',background:'#ef4444',color:'#fff',fontSize:'13px',display:'flex',alignItems:'center',justifyContent:'center',zIndex:6,pointerEvents:'none'}}>⚠</span>}
                               {noisy&&<span style={{position:'absolute',top:'-6px',right:'-6px',fontSize:'16px',zIndex:6,pointerEvents:'none'}}>🔊</span>}
                               {milkFs&&<span style={{position:'absolute',bottom:'-6px',right:'-6px',fontSize:'16px',zIndex:6,pointerEvents:'none'}}>🥛</span>}
                             </div>
