@@ -2,6 +2,12 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { seatingAPI, studentsAPI, currentSchoolYear } from '../utils/api';
 import './SeatingArrangement.css';
 
+// pairMap[a] 에 b 를 한 번 더 만난 것으로 기록한다. {studentId: Map<partnerId, count>}
+function bumpPair(pairMap, a, b) {
+  if(!pairMap[a]) pairMap[a] = new Map();
+  pairMap[a].set(b, (pairMap[a].get(b) || 0) + 1);
+}
+
 function SeatingArrangement() {
   const [arrangements,        setArrangements]        = useState([]);
   const [selectedArrangement, setSelectedArrangement] = useState(null);
@@ -42,8 +48,8 @@ function SeatingArrangement() {
   // 줄별 앉은 횟수 통계
   const [rowStats, setRowStats] = useState({});  // {studentId: {row1:n, row2:n, row3:n, row4:n}}
 
-  // 중복 짝 맵
-  const [duplicatePairMap, setDuplicatePairMap] = useState({});  // {studentId: Set<partnerId>}
+  // 중복 짝 맵 — 2인 짝만 집계. 값은 '몇 번 짝이었나'
+  const [duplicatePairMap, setDuplicatePairMap] = useState({});  // {studentId: Map<partnerId, count>}
 
   // 자주 떠드는 학생 (전체 배치 집계)
   const [frequentNoisyStudents, setFrequentNoisyStudents] = useState([]);  // [{id, count}]
@@ -83,54 +89,59 @@ function SeatingArrangement() {
     studentsRef.current.forEach(s => { stats[s.id] = {row1:0, row2:0, row3:0, row4:0}; });
 
     // 모든 이전 배치에서 줄별 통계 + 짝 이력 동시 수집
+    // 순차 await 였던 것을 병렬로. 백엔드 throttler 는 default 100req/1s 이라 배치 수만큼은 안전.
+    const targets = arrangements.filter(a => a.id !== selectedArrangement.id);
+    const details = await Promise.all(
+      targets.map(a => seatingAPI.getArrangementDetails(a.id).catch(() => null)),
+    );
+    const failedCount = details.filter(d => !d).length;
+
     const noisyCount = {};  // {studentId: count}
-    for(const arr of arrangements) {
-      if(arr.id === selectedArrangement.id) continue;
-      try {
-        const detail = await seatingAPI.getArrangementDetails(arr.id);
-        // 줄별 통계
-        detail.positions.forEach(p => {
-          if(stats[p.student_id]) {
-            if(p.row_pos >= 6) stats[p.student_id].row1++;
-            else if(p.row_pos >= 4) stats[p.student_id].row2++;
-            else if(p.row_pos >= 2) stats[p.student_id].row3++;
-            else stats[p.student_id].row4++;
+    for(const detail of details) {
+      if(!detail) continue;
+      // 줄별 통계
+      detail.positions.forEach(p => {
+        if(stats[p.student_id]) {
+          if(p.row_pos >= 6) stats[p.student_id].row1++;
+          else if(p.row_pos >= 4) stats[p.student_id].row2++;
+          else if(p.row_pos >= 2) stats[p.student_id].row3++;
+          else stats[p.student_id].row4++;
+        }
+      });
+      // 떠드는 학생 집계
+      (detail.preferences?.noisy_students || []).forEach(sid => {
+        noisyCount[sid] = (noisyCount[sid] || 0) + 1;
+      });
+      // 짝 이력 (BFS)
+      const gridSnap = Array(10).fill(null).map(()=>Array(10).fill(null));
+      detail.positions.forEach(p => { gridSnap[p.row_pos][p.col_pos] = p.student_id; });
+      const visited = Array(10).fill(null).map(()=>Array(10).fill(false));
+      for(let r=0; r<10; r++) {
+        for(let c=0; c<10; c++) {
+          if(!gridSnap[r][c] || visited[r][c]) continue;
+          const group = [];
+          const queue = [[r,c]];
+          visited[r][c] = true;
+          while(queue.length > 0) {
+            const [cr,cc] = queue.shift();
+            group.push(gridSnap[cr][cc]);
+            [[-1,0],[1,0],[0,-1],[0,1]].forEach(([dr,dc]) => {
+              const nr=cr+dr, nc=cc+dc;
+              if(nr>=0&&nr<10&&nc>=0&&nc<10&&gridSnap[nr][nc]&&!visited[nr][nc]) {
+                visited[nr][nc] = true;
+                queue.push([nr,nc]);
+              }
+            });
           }
-        });
-        // 떠드는 학생 집계
-        (detail.preferences?.noisy_students || []).forEach(sid => {
-          noisyCount[sid] = (noisyCount[sid] || 0) + 1;
-        });
-        // 짝 이력 (BFS)
-        const gridSnap = Array(10).fill(null).map(()=>Array(10).fill(null));
-        detail.positions.forEach(p => { gridSnap[p.row_pos][p.col_pos] = p.student_id; });
-        const visited = Array(10).fill(null).map(()=>Array(10).fill(false));
-        for(let r=0; r<10; r++) {
-          for(let c=0; c<10; c++) {
-            if(!gridSnap[r][c] || visited[r][c]) continue;
-            const group = [];
-            const queue = [[r,c]];
-            visited[r][c] = true;
-            while(queue.length > 0) {
-              const [cr,cc] = queue.shift();
-              group.push(gridSnap[cr][cc]);
-              [[-1,0],[1,0],[0,-1],[0,1]].forEach(([dr,dc]) => {
-                const nr=cr+dr, nc=cc+dc;
-                if(nr>=0&&nr<10&&nc>=0&&nc<10&&gridSnap[nr][nc]&&!visited[nr][nc]) {
-                  visited[nr][nc] = true;
-                  queue.push([nr,nc]);
-                }
-              });
-            }
-            if(group.length >= 2) {
-              group.forEach(sid => {
-                if(!pairMap[sid]) pairMap[sid] = new Set();
-                group.forEach(pid => { if(pid !== sid) pairMap[sid].add(pid); });
-              });
-            }
+          // 2인 짝만 이력으로 센다. 3인 이상 모둠 동석은 짝이 아니다
+          // (서버 seating_history 도 group_type 으로 'pair'/'group' 을 구분해 저장한다).
+          if(group.length === 2) {
+            const [a, b] = group;
+            bumpPair(pairMap, a, b);
+            bumpPair(pairMap, b, a);
           }
         }
-      } catch{}
+      }
     }
 
     // 현재 배치의 떠드는 학생도 포함
@@ -146,7 +157,12 @@ function SeatingArrangement() {
 
     setDuplicatePairMap(pairMap);
     setRowStats(stats);
-  }, [arrangements, selectedArrangement, noisyStudents]);
+
+    // 조회가 일부 실패하면 그만큼 짝 이력이 비는데, 화면상으로는 '중복 없음'과 구별되지 않는다.
+    if(failedCount > 0) {
+      showToast(`이전 배치 ${failedCount}개를 못 읽었습니다. 짝 이력이 일부 빠졌을 수 있습니다.`, 'error');
+    }
+  }, [arrangements, selectedArrangement, noisyStudents, showToast]);
 
   useEffect(() => { if(selectedArrangement) computeDuplicatesAndRowStats(); }, [selectedArrangement, computeDuplicatesAndRowStats]);
 
@@ -381,9 +397,10 @@ function SeatingArrangement() {
       const allToArrange=[...fairOrderedRegulars];
       // 이미 계산된 duplicatePairMap 사용 (모든 이전 배치의 짝 이력)
       const shouldSeparate=(id1,id2)=>separateStudents.some(pair=>(pair[0]===id1&&pair[1]===id2)||(pair[0]===id2&&pair[1]===id1));
-      const wasPaired=(id1,id2)=>duplicatePairMap[id1]?.has(id2) || false;
+      const pairCount=(id1,id2)=>duplicatePairMap[id1]?.get(id2) || 0;  // 몇 번 짝이었나 (0 = 처음)
       const isCellEmpty=(r,c)=>r>=0&&r<8&&c>=0&&c<10&&!newGrid[r][c]; // 행 0~7만 사용 (8,9행 제외)
       let si=0;
+      let reusedPairs=0, forcedPairs=0;  // 조용히 떨어지지 않도록 집계
 
       if(autoArrangeMode==='pair'){
         const cw=3,tw=numColumns*cw-1,sc=Math.floor((10-tw)/2);
@@ -405,15 +422,18 @@ function SeatingArrangement() {
             if(isCellEmpty(row,cg[0])){
               const s1=allToArrange[si++]; if(!s1) continue; newGrid[row][cg[0]]=s1;
               if(si<allToArrange.length&&isCellEmpty(row,cg[1])){
-                let s2=null;
+                // 분리조건을 지키는 후보 중 '가장 덜 만난' 짝을 고른다.
+                // 예전에는 한 번이라도 만났으면 전부 똑같이 버리고 아무나 집었기 때문에,
+                // 이력이 포화되면 사실상 무작위가 됐다.
+                let s2=null, s2idx=-1, best=Infinity;
                 for(let i=si;i<allToArrange.length;i++){
                   const c=allToArrange[i];
-                  if(!shouldSeparate(s1.id,c.id)&&!wasPaired(s1.id,c.id)){ s2=c; allToArrange.splice(i,1); break; }
+                  if(shouldSeparate(s1.id,c.id)) continue;
+                  const n=pairCount(s1.id,c.id);
+                  if(n<best){ best=n; s2=c; s2idx=i; if(n===0) break; }
                 }
-                if(!s2) for(let i=si;i<allToArrange.length;i++){
-                  const c=allToArrange[i]; if(!shouldSeparate(s1.id,c.id)){ s2=c; allToArrange.splice(i,1); break; }
-                }
-                if(!s2&&si<allToArrange.length) s2=allToArrange[si++];
+                if(s2){ allToArrange.splice(s2idx,1); if(best>0) reusedPairs++; }
+                else if(si<allToArrange.length){ s2=allToArrange[si++]; forcedPairs++; }
                 if(s2) newGrid[row][cg[1]]=s2;
               }
             }
@@ -446,7 +466,15 @@ function SeatingArrangement() {
       setGrid(newGrid);
       const assignedIds=newGrid.flat().filter(c=>c).map(s=>s.id);
       setUnassignedStudents(allStudents.filter(s=>!assignedIds.includes(s.id)));
-      showToast('자동 배치 완료! 저장 버튼을 눌러주세요.','success');
+      const notes=[];
+      if(reusedPairs>0) notes.push(`이전 짝 재사용 ${reusedPairs}쌍`);
+      if(forcedPairs>0) notes.push(`분리조건 미충족 ${forcedPairs}쌍`);
+      showToast(
+        notes.length
+          ? `자동 배치 완료 (${notes.join(', ')}). 저장 버튼을 눌러주세요.`
+          : '자동 배치 완료! 저장 버튼을 눌러주세요.',
+        notes.length ? 'info' : 'success',
+      );
     } catch(e){ showToast('자동 배치 중 오류: '+e.message,'error'); }
   };
 
