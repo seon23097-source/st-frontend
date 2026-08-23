@@ -269,26 +269,18 @@ function SeatingArrangement() {
   };
 
   // ── 이력 조회 ──
-  const checkHistory = async (row,col) => {
+  // 팝업은 회피 로직과 '같은' 소스(duplicatePairMap)를 쓴다.
+  // 예전에는 서버 seating_history 를 따로 읽어 최근 5건만 보여줬는데, 그쪽은
+  // 모둠 동석과 지난 학년도까지 섞여 있어서 화면에 뜨는 이름과 실제 회피 기준이 달랐다.
+  const checkHistory = (row,col) => {
     const cur=grid[row][col];
     if(!cur){ setHistoryPopup(null); return; }
-    try {
-      const history=await seatingAPI.getHistory(cur.id);
-      if(!history||history.length===0){ setHistoryPopup(null); return; }
-      // 이력에서 파트너 이름 조회
-      const historyWithNames = history.slice(0,5).map(h=>{
-        const partnerNames = (h.partner_ids||[]).map(pid=>{
-          const s = students.find(st=>st.id===pid);
-          return s ? s.name : `${pid}번`;
-        });
-        return {
-          date: h.arrangement_date ? String(h.arrangement_date).substring(0,10) : '',
-          partners: partnerNames,
-          group_type: h.group_type,
-        };
-      });
-      setHistoryPopup({row, col, studentName: cur.name, history: historyWithNames});
-    } catch(e){ console.error('이력 조회 실패:',e); }
+    const hist=duplicatePairMap[cur.id];
+    if(!hist||hist.size===0){ setHistoryPopup(null); return; }
+    const partners=[...hist.entries()]
+      .map(([pid,count])=>({ id:pid, count, name: students.find(s=>s.id===pid)?.name || `${pid}번` }))
+      .sort((a,b)=> b.count-a.count || a.name.localeCompare(b.name,'ko'));
+    setHistoryPopup({row, col, studentName: cur.name, partners});
   };
 
   const loadArrangementDetails = async (id) => {
@@ -671,22 +663,27 @@ function SeatingArrangement() {
                                   {milk&&<span style={{position:'absolute',bottom:'-5px',right:'-5px',fontSize:'11px',zIndex:6,pointerEvents:'none'}}>🥛</span>}
                                 </div>
                               )}
-                              {historyPopup?.row===i&&historyPopup?.col===j&&historyPopup.history.length>0&&!draggedStudent&&(
+                              {historyPopup?.row===i&&historyPopup?.col===j&&historyPopup.partners.length>0&&!draggedStudent&&(
                                 <div className="history-popup" style={{
-                                  position:'absolute',bottom:'100%',left:'50%',transform:'translateX(-50%)',
-                                  marginBottom:'6px',background:'#111827',border:'1px solid #374151',
-                                  borderRadius:'8px',padding:'8px 12px',zIndex:100,minWidth:'160px',
+                                  position:'absolute',left:'50%',transform:'translateX(-50%)',
+                                  // 위쪽 줄은 위로 띄울 자리가 없어 헤더에 가린다 → 아래로 내린다
+                                  ...(i<=2 ? {top:'100%',marginTop:'6px'} : {bottom:'100%',marginBottom:'6px'}),
+                                  background:'#111827',border:'1px solid #374151',
+                                  borderRadius:'8px',padding:'6px 10px',zIndex:100,
+                                  width:'max-content',maxWidth:'230px',
                                   pointerEvents:'none',boxShadow:'0 4px 16px rgba(0,0,0,0.4)'
                                 }}>
-                                  {historyPopup.history.map((h,idx)=>(
-                                    <div key={idx} style={{
-                                      display:'flex',gap:'8px',alignItems:'center',padding:'3px 0',
-                                      borderBottom:idx<historyPopup.history.length-1?'1px solid #374151':'none'
-                                    }}>
-                                      <span style={{color:'#9ca3af',fontSize:'12px',flexShrink:0}}>{h.date}</span>
-                                      <span style={{color:'#fbbf24',fontWeight:700,fontSize:'13px'}}>{h.partners.join(', ')}</span>
-                                    </div>
-                                  ))}
+                                  <div style={{color:'#9ca3af',fontSize:'11px',marginBottom:'4px'}}>
+                                    지금까지 짝 {historyPopup.partners.length}명
+                                  </div>
+                                  <div style={{display:'flex',flexWrap:'wrap',gap:'4px'}}>
+                                    {historyPopup.partners.map(p=>(
+                                      <span key={p.id} style={{
+                                        color:'#fbbf24',fontWeight:700,fontSize:'12px',whiteSpace:'nowrap',
+                                        background:'#1f2937',borderRadius:'4px',padding:'2px 6px'
+                                      }}>{p.name}{p.count>1?` ×${p.count}`:''}</span>
+                                    ))}
+                                  </div>
                                 </div>
                               )}
                             </div>
