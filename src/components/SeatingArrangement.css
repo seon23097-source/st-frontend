@@ -785,8 +785,8 @@
   border-radius: 8px;
   padding: 8px 12px;
   z-index: 100;
-  min-width: 160px;
-  max-width: 240px;
+  width: max-content;
+  max-width: 230px;
   animation: popupFadeIn 0.15s;
   pointer-events: none;
   box-shadow: 0 4px 16px rgba(0,0,0,0.4);
@@ -797,33 +797,35 @@
   to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
-.history-popup-item {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  padding: 4px 0;
-  font-size: 13px;
-  line-height: 1.4;
+/* 위쪽 줄은 위로 띄울 자리가 없어 헤더에 가린다 → 셀 아래로 내린다.
+   bottom 을 auto 로 되돌리지 않으면 top/bottom 이 동시에 걸려 높이가 찌그러진다. */
+.history-popup.below {
+  top: 100%;
+  bottom: auto;
+  margin-top: 6px;
+  margin-bottom: 0;
 }
 
-.history-popup-item:not(:last-child) {
-  border-bottom: 1px solid #374151;
-}
-
-.history-popup-date {
+.history-popup-count {
   color: #9ca3af;
-  font-size: 12px;
-  flex-shrink: 0;
-  font-variant-numeric: tabular-nums;
+  font-size: 11px;
+  margin-bottom: 4px;
 }
 
-.history-popup-names {
+.history-popup-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.history-popup-chip {
   color: #fbbf24;
   font-weight: 700;
-  font-size: 13px;
+  font-size: 12px;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  background: #1f2937;
+  border-radius: 4px;
+  padding: 2px 6px;
 }
 
 /* ===== 로딩 ===== */

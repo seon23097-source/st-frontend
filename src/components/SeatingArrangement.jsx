@@ -664,24 +664,15 @@ function SeatingArrangement() {
                                 </div>
                               )}
                               {historyPopup?.row===i&&historyPopup?.col===j&&historyPopup.partners.length>0&&!draggedStudent&&(
-                                <div className="history-popup" style={{
-                                  position:'absolute',left:'50%',transform:'translateX(-50%)',
-                                  // 위쪽 줄은 위로 띄울 자리가 없어 헤더에 가린다 → 아래로 내린다
-                                  ...(i<=2 ? {top:'100%',marginTop:'6px'} : {bottom:'100%',marginBottom:'6px'}),
-                                  background:'#111827',border:'1px solid #374151',
-                                  borderRadius:'8px',padding:'6px 10px',zIndex:100,
-                                  width:'max-content',maxWidth:'230px',
-                                  pointerEvents:'none',boxShadow:'0 4px 16px rgba(0,0,0,0.4)'
-                                }}>
-                                  <div style={{color:'#9ca3af',fontSize:'11px',marginBottom:'4px'}}>
+                                <div className={`history-popup${i<=2?' below':''}`}>
+                                  <div className="history-popup-count">
                                     지금까지 짝 {historyPopup.partners.length}명
                                   </div>
-                                  <div style={{display:'flex',flexWrap:'wrap',gap:'4px'}}>
+                                  <div className="history-popup-chips">
                                     {historyPopup.partners.map(p=>(
-                                      <span key={p.id} style={{
-                                        color:'#fbbf24',fontWeight:700,fontSize:'12px',whiteSpace:'nowrap',
-                                        background:'#1f2937',borderRadius:'4px',padding:'2px 6px'
-                                      }}>{p.name}{p.count>1?` ×${p.count}`:''}</span>
+                                      <span key={p.id} className="history-popup-chip">
+                                        {p.name}{p.count>1?` ×${p.count}`:''}
+                                      </span>
                                     ))}
                                   </div>
                                 </div>
