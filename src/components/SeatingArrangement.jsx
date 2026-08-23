@@ -51,6 +51,17 @@ function SeatingArrangement() {
   // 중복 짝 맵 — 2인 짝만 집계. 값은 '몇 번 짝이었나'
   const [duplicatePairMap, setDuplicatePairMap] = useState({});  // {studentId: Map<partnerId, count>}
 
+  // 배치 상세 캐시 {arrangementId: detail}
+  // 저장 전까지 배치 상세는 바뀌지 않는다. 캐시가 없으면 배치를 고를 때마다 전 배치를
+  // 다시 읽어서 백엔드 throttler(default 100req/1s)에 걸린다 — 실제로 429 가 났다.
+  const detailCache = useRef(new Map());
+  const fetchDetail = useCallback(async (id, fresh = false) => {
+    if (!fresh && detailCache.current.has(id)) return detailCache.current.get(id);
+    const d = await seatingAPI.getArrangementDetails(id);
+    detailCache.current.set(id, d);
+    return d;
+  }, []);
+
   // 자주 떠드는 학생 (전체 배치 집계)
   const [frequentNoisyStudents, setFrequentNoisyStudents] = useState([]);  // [{id, count}]
 
@@ -88,12 +99,17 @@ function SeatingArrangement() {
     const stats = {};
     studentsRef.current.forEach(s => { stats[s.id] = {row1:0, row2:0, row3:0, row4:0}; });
 
-    // 모든 이전 배치에서 줄별 통계 + 짝 이력 동시 수집
-    // 순차 await 였던 것을 병렬로. 백엔드 throttler 는 default 100req/1s 이라 배치 수만큼은 안전.
+    // 모든 이전 배치에서 줄별 통계 + 짝 이력 수집.
+    // 캐시가 대부분 받아내고, 남은 것도 한꺼번에 던지지 않고 6개씩 끊는다.
+    // 전부 동시에 던졌더니 배치를 빠르게 여러 번 고를 때 429 가 났다(증보 II §19).
     const targets = arrangements.filter(a => a.id !== selectedArrangement.id);
-    const details = await Promise.all(
-      targets.map(a => seatingAPI.getArrangementDetails(a.id).catch(() => null)),
-    );
+    const details = [];
+    for (let i = 0; i < targets.length; i += 6) {
+      const chunk = targets.slice(i, i + 6);
+      details.push(...await Promise.all(
+        chunk.map(a => fetchDetail(a.id).catch(() => null)),
+      ));
+    }
     const failedCount = details.filter(d => !d).length;
 
     const noisyCount = {};  // {studentId: count}
@@ -162,7 +178,7 @@ function SeatingArrangement() {
     if(failedCount > 0) {
       showToast(`이전 배치 ${failedCount}개를 못 읽었습니다. 짝 이력이 일부 빠졌을 수 있습니다.`, 'error');
     }
-  }, [arrangements, selectedArrangement, noisyStudents, showToast]);
+  }, [arrangements, selectedArrangement, noisyStudents, showToast, fetchDetail]);
 
   useEffect(() => { if(selectedArrangement) computeDuplicatesAndRowStats(); }, [selectedArrangement, computeDuplicatesAndRowStats]);
 
@@ -195,7 +211,7 @@ function SeatingArrangement() {
       front_students: frontStudents,
       separate_students: separateStudents,
       noisy_students: noisyStudents,
-    }).catch(() => {});
+    }).then(() => detailCache.current.delete(selectedArrangement.id)).catch(() => {});
   }, [noisyStudents]);
 
   const isNoisyStudent = useCallback((studentId) => {
@@ -285,7 +301,7 @@ function SeatingArrangement() {
 
   const loadArrangementDetails = async (id) => {
     try {
-      const data=await seatingAPI.getArrangementDetails(id);
+      const data=await fetchDetail(id, true);   // 여는 배치는 항상 최신
       setSelectedArrangement(data.arrangement);
       const newGrid=Array(10).fill(null).map(()=>Array(10).fill(null));
       data.positions.forEach(p=>{ newGrid[p.row_pos][p.col_pos]={id:p.student_id,name:p.name,student_number:p.student_number}; });
@@ -316,6 +332,7 @@ function SeatingArrangement() {
     if(!confirm('이 자리배치를 삭제하시겠습니까?')) return;
     try {
       await seatingAPI.deleteArrangement(id);
+      detailCache.current.delete(id);
       if(selectedArrangement?.id===id){ setSelectedArrangement(null); setGrid(Array(10).fill(null).map(()=>Array(10).fill(null))); }
       await loadData();
     } catch(e){ showToast('삭제 실패: '+e.message,'error'); }
@@ -328,6 +345,7 @@ function SeatingArrangement() {
       if(grid[i][j]) positions.push({student_id:grid[i][j].id,row_pos:i,col_pos:j});
     try {
       await seatingAPI.savePositions(selectedArrangement.id,positions);
+      detailCache.current.delete(selectedArrangement.id);   // 저장했으니 캐시 무효
       showToast('저장되었습니다! ✓','success');
     } catch(e){ showToast('저장 실패: '+e.message,'error'); }
   };
@@ -474,6 +492,7 @@ function SeatingArrangement() {
     if(!selectedArrangement) return;
     try {
       await seatingAPI.savePreferences(selectedArrangement.id,{front_students:frontStudents,separate_students:separateStudents,noisy_students:noisyStudents});
+      detailCache.current.delete(selectedArrangement.id);
       showToast('설정 저장됨 ✓','success');
     } catch(e){ showToast('저장 실패: '+e.message,'error'); }
   };

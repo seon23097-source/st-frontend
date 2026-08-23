@@ -806,26 +806,31 @@
   margin-bottom: 0;
 }
 
-.history-popup-count {
-  color: #9ca3af;
+/* 색 선언은 .history-popup 아래로 한 단계 더 묶는다.
+   실사용 화면에서 이 칩들의 글자색만 body 상속색(#3A3A4A)으로 나왔다.
+   컨테이너 배경·모서리·배치는 정상이었고 로컬 브라우저 재현에서는 색도 정상이라
+   원인을 특정하지 못했다 — 우선 명시도를 올리고 대비를 키워 둔다. */
+.history-popup .history-popup-count {
+  color: #cbd5e1;
   font-size: 11px;
-  margin-bottom: 4px;
+  margin-bottom: 5px;
 }
 
-.history-popup-chips {
+.history-popup .history-popup-chips {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
 }
 
-.history-popup-chip {
-  color: #fbbf24;
+.history-popup .history-popup-chip {
+  color: #fde68a;
   font-weight: 700;
-  font-size: 12px;
+  font-size: 12.5px;
   white-space: nowrap;
-  background: #1f2937;
+  background: #374151;
+  border: 1px solid #4b5563;
   border-radius: 4px;
-  padding: 2px 6px;
+  padding: 2px 7px;
 }
 
 /* ===== 로딩 ===== */
