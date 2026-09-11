@@ -67,6 +67,13 @@ export const studentsAPI = {
   activate:   (id) => api.patch(`/students/${id}/activate`),
   delete: (id, year) =>
     api.delete(`/students/${id}`, { params: { year: year || currentSchoolYear() } }),
+
+  // 학년도 초기화 (pmem st-app issue #77) — 서버가 한 트랜잭션으로 지운다.
+  // year 는 기본값을 두지 않는다. 파괴적 작업이라 호출부가 명시해야 한다.
+  resetYearPreview: (year, confirm) =>
+    api.post('/students/reset-year/preview', { year, confirm }),
+  resetYear: (year, confirm) =>
+    api.post('/students/reset-year', { year, confirm }),
 };
 
 // ── Categories API ─────────────────────────────────────────

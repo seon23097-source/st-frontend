@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { teachersAPI, currentSchoolYear } from '../utils/api';
+import { teachersAPI, studentsAPI, currentSchoolYear } from '../utils/api';
 import './StudentManager.css';
 import './AccountManager.css';
 
@@ -23,6 +23,21 @@ const loadCls = (year) => {
   } catch { return {}; }
 };
 
+// 초기화 미리보기에서 표 이름을 사람이 읽는 말로 (pmem st-app issue #77)
+const RESET_LABEL = {
+  students: '학생', evaluation_records: '평가 기록', evaluation_categories: '평가 항목',
+  attendance_records: '출결 기록', attendance_notes: '출결 메모',
+  attendance_events: '학사일정', attendance_semesters: '학기 설정',
+  behavior_logs: '행동발달 기록', behavior_checklists: '행동발달 체크',
+  checklist_topics: '체크리스트 주제', checklist_items: '체크리스트 항목',
+  checklist_checks: '체크리스트 기록',
+  seating_arrangements: '자리배치', seating_positions: '자리배치 좌석',
+  seating_history: '자리배치 이력', seating_preferences: '자리배치 조건',
+  groups: '모둠', student_groups: '모둠 배정',
+  presentation_records: '발표 기록',
+  grade_selections: '성적처리 선택', grade_results: '성적처리 평어',
+};
+
 function AccountManager({ teacher }) {
   // ── 기존 상태 ──
   const [teachers, setTeachers] = useState([]);
@@ -42,8 +57,21 @@ function AccountManager({ teacher }) {
   // ── 초기화 상태 ──
   const [showReset,  setShowReset]  = useState(false);
   const [resetInput, setResetInput] = useState('');
+  const [resetBusy,  setResetBusy]  = useState(false);
+  const [preview,    setPreview]    = useState(null);
 
   useEffect(() => { loadTeachers(); }, []);
+
+  // 초기화 모달을 열면 무엇이 몇 행 지워지는지 서버에 먼저 물어본다.
+  // 미리보기는 읽기 전용이다 — 지우지 않는다 (pmem st-app issue #77).
+  useEffect(() => {
+    if (!showReset) { setPreview(null); return; }
+    let alive = true;
+    studentsAPI.resetYearPreview(classYear, `${classYear}년 초기화`)
+      .then(p => { if (alive) setPreview(p); })
+      .catch(e => { if (alive) setPreview({ failed: e.message || '조회 실패' }); });
+    return () => { alive = false; };
+  }, [showReset, classYear]);
 
   const loadTeachers = async () => {
     try { setTeachers(await teachersAPI.getAll()); } catch {}
@@ -66,28 +94,48 @@ function AccountManager({ teacher }) {
     }
   }
 
-  // 학년도 초기화 — 2026-09-11 잠금 (pmem st-app issue #77)
+  // 학년도 초기화 (pmem st-app issue #77)
   //
-  // 옛 구현의 순서가 위험했다:
-  //   ① localStorage 삭제 (출결·메모·할일·학기설정·행사일 — 서버에 사본이 없다)
-  //   ② 학생마다 평가 기록 삭제 → 학생 삭제
-  // ②가 외래키 제약으로 반드시 실패한다. students 를 참조하는 FK 11개 중 CASCADE 는
-  // student_groups 하나뿐이고 나머지 10개는 NO ACTION 이다.
-  // 2026-08-23 실측으로 학생을 붙잡고 있는 행: checklist_checks 2505 /
-  // evaluation_records 599 / seating_positions 428 / seating_history 425 /
-  // behavior_logs 313 / attendance_records 83 / attendance_notes 76 /
-  // presentation_records 21.
-  // 트랜잭션이 없어서 ①은 이미 지워지고 ②는 일부만 지워진 채 멈춘다 — 되돌릴 수 없다.
-  //
-  // 다음 단계: 서버에 한 트랜잭션으로 지우는 엔드포인트를 만들고, 프론트는
-  // **성공 응답을 받은 뒤에만** localStorage 를 지운다. 순서를 뒤집는 것이 핵심이다.
+  // ★ 순서가 핵심이다. 옛 구현은 localStorage 를 **먼저** 지운 뒤 학생 삭제에서
+  //   외래키로 실패해, 이미 지운 평가 기록을 되돌릴 수 없었다(트랜잭션 없음).
+  //   이제 서버가 한 트랜잭션으로 지우고, **성공 응답을 받은 뒤에만** 로컬을 지운다.
+  //   실패하면 서버도 로컬도 그대로다.
   async function handleReset() {
-    alert(
-      '초기화 기능은 현재 잠겨 있습니다.\n\n' +
-      '옛 방식은 삭제가 중간에 실패하면 출결·메모·할일이 되돌릴 수 없이 사라졌습니다.\n' +
-      '서버에서 한 번에 안전하게 지우도록 고치는 중입니다.'
-    );
+    const expected = `${classYear}년 초기화`;
+    if (resetInput.trim() !== expected) {
+      alert(`"${expected}" 을 정확히 입력해주세요.`);
+      return;
+    }
+
+    setResetBusy(true);
+    try {
+      // ① 서버에서 한 트랜잭션으로 삭제 (전부 성공하거나 전부 되돌아간다)
+      const r = await studentsAPI.resetYear(classYear, expected);
+
+      // ② 성공한 뒤에만 로컬 캐시·학급설정 정리.
+      //    att_* / today_* 는 서버가 권위이고 이건 캐시다(일부는 옛 버전의 잔재).
+      const prefixes = [
+        'att_records', 'att_notes', 'att_events', 'att_vacation', 'att_semester',
+        'today_memo_', 'today_todos_', 'today_notice_'
+      ];
+      prefixes.forEach(prefix => {
+        Object.keys(localStorage)
+          .filter(k => k.startsWith(prefix))
+          .forEach(k => localStorage.removeItem(k));
+      });
+      localStorage.removeItem(clsInfoKey(classYear));
+
+      setShowReset(false);
+      setResetInput('');
+      alert(`✅ ${classYear}학년도 데이터를 초기화했습니다 (${r.totalRows}행 삭제).\n페이지를 새로고침합니다.`);
+      setTimeout(() => window.location.reload(), 500);
+    } catch (err) {
+      alert('초기화에 실패했습니다.\n데이터는 지워지지 않았습니다 (트랜잭션이 되돌렸습니다).\n\n' + err.message);
+    } finally {
+      setResetBusy(false);
+    }
   }
+
 
   // 계정 기능
   const handleAdd = async (e) => {
@@ -231,16 +279,9 @@ function AccountManager({ teacher }) {
           현재 기준 연도(<strong>{classYear}년</strong>)의 출결·메모·할일·학기 설정·행사일 등
           모든 데이터를 완전히 삭제합니다. <strong>이 작업은 되돌릴 수 없습니다.</strong>
         </p>
-        {/* 2026-09-11 — 버튼을 안내로 바꿔 잠갔다 (pmem st-app issue #77).
-            handleReset 주석에 옛 구현이 왜 반파로 끝나는지 적어두었다. */}
-        <div style={{
-          background: '#fffbeb', border: '1.5px solid #fcd34d', borderRadius: 8,
-          padding: 12, color: '#78350f', fontSize: 13, lineHeight: 1.6
-        }}>
-          🔒 <strong>초기화 기능을 잠시 잠가두었습니다.</strong><br />
-          옛 방식은 삭제가 중간에 실패하면 출결·메모·할일이 되돌릴 수 없이 사라졌습니다.
-          서버에서 한 번에 안전하게 지우도록 고치는 중이며, 완료되면 다시 열립니다.
-        </div>
+        <button className="acm-reset-btn" onClick={() => setShowReset(true)}>
+          🗑 {classYear}학년도 데이터 초기화
+        </button>
       </div>
 
       {/* ── 계정 추가 모달 ── */}
@@ -289,10 +330,45 @@ function AccountManager({ teacher }) {
                 <p style={{ fontSize: 13.5, color: '#ef4444', fontWeight: 800, margin: '0 0 6px' }}>
                   ❗ 삭제 후 복구 불가능합니다
                 </p>
-                <p style={{ fontSize: 12.5, color: '#7f1d1d', margin: 0 }}>
-                  {classYear}학년도 출결 기록, 오늘 메모, 할일 목록,<br />
-                  학기 설정, 행사일 설정 등 모든 데이터가 영구 삭제됩니다.
+                <p style={{ fontSize: 12.5, color: '#7f1d1d', margin: '0 0 8px' }}>
+                  {classYear}학년도의 학생과 그 학생에 딸린 모든 기록(출결·평가·행동발달·
+                  체크리스트·자리배치·발표·성적처리), 그리고 학사일정·학기 설정이 삭제됩니다.<br />
+                  <strong>오늘 메모·할일·공지는 삭제하지 않습니다.</strong>
                 </p>
+                {/* 실제로 몇 행이 지워지는지 서버에 물어서 보여준다 — 읽기 전용 조회다 */}
+                {preview === null && (
+                  <p style={{ fontSize: 12, color: '#7f1d1d', margin: 0 }}>삭제 대상 확인 중…</p>
+                )}
+                {preview && preview.failed && (
+                  <p style={{ fontSize: 12, color: '#7f1d1d', margin: 0 }}>
+                    삭제 대상을 확인하지 못했습니다: {preview.failed}
+                  </p>
+                )}
+                {preview && !preview.failed && (
+                  <div style={{ fontSize: 12, color: '#7f1d1d' }}>
+                    <div style={{ fontWeight: 800, marginBottom: 4 }}>
+                      삭제 대상 {preview.totalRows}행
+                    </div>
+                    {preview.totalRows === 0 ? (
+                      <div>지울 데이터가 없습니다.</div>
+                    ) : (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '2px 10px' }}>
+                        {[...preview.steps, ...preview.cascade]
+                          .filter(x => x.rows > 0)
+                          .map(x => (
+                            <span key={x.table}>
+                              {RESET_LABEL[x.table] || x.table} {x.rows}
+                            </span>
+                          ))}
+                      </div>
+                    )}
+                    {preview.fkCheck && preview.fkCheck.some(f => !f.ok) && (
+                      <div style={{ marginTop: 6, fontWeight: 800 }}>
+                        ⚠️ DB 삭제규칙이 예상과 달라 실패할 수 있습니다. 관리자에게 알려주세요.
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
               <div className="form-group">
                 <label className="label">
@@ -318,8 +394,8 @@ function AccountManager({ teacher }) {
                     color: '#fff', fontWeight: 800, border: 'none', cursor: 'pointer'
                   }}
                   onClick={handleReset}
-                  disabled={resetInput !== `${classYear}년 초기화`}
-                >영구 삭제</button>
+                  disabled={resetBusy || resetInput !== `${classYear}년 초기화`}
+                >{resetBusy ? '삭제 중…' : '영구 삭제'}</button>
               </div>
             </div>
           </div>
