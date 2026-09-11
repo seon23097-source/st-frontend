@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { teachersAPI, studentsAPI, evaluationsAPI, categoriesAPI, currentSchoolYear } from '../utils/api';
+import { teachersAPI, currentSchoolYear } from '../utils/api';
 import './StudentManager.css';
 import './AccountManager.css';
 
@@ -66,52 +66,27 @@ function AccountManager({ teacher }) {
     }
   }
 
-  // 학년도 초기화
+  // 학년도 초기화 — 2026-09-11 잠금 (pmem st-app issue #77)
+  //
+  // 옛 구현의 순서가 위험했다:
+  //   ① localStorage 삭제 (출결·메모·할일·학기설정·행사일 — 서버에 사본이 없다)
+  //   ② 학생마다 평가 기록 삭제 → 학생 삭제
+  // ②가 외래키 제약으로 반드시 실패한다. students 를 참조하는 FK 11개 중 CASCADE 는
+  // student_groups 하나뿐이고 나머지 10개는 NO ACTION 이다.
+  // 2026-08-23 실측으로 학생을 붙잡고 있는 행: checklist_checks 2505 /
+  // evaluation_records 599 / seating_positions 428 / seating_history 425 /
+  // behavior_logs 313 / attendance_records 83 / attendance_notes 76 /
+  // presentation_records 21.
+  // 트랜잭션이 없어서 ①은 이미 지워지고 ②는 일부만 지워진 채 멈춘다 — 되돌릴 수 없다.
+  //
+  // 다음 단계: 서버에 한 트랜잭션으로 지우는 엔드포인트를 만들고, 프론트는
+  // **성공 응답을 받은 뒤에만** localStorage 를 지운다. 순서를 뒤집는 것이 핵심이다.
   async function handleReset() {
-    const expected = `${classYear}년 초기화`;
-    if (resetInput.trim() !== expected) {
-      alert(`"${expected}" 을 정확히 입력해주세요.`);
-      return;
-    }
-
-    try {
-      // ① localStorage 초기화 (출결·메모·할일·학기설정·행사일)
-      const prefixes = [
-        'att_records', 'att_notes', 'att_events', 'att_vacation', 'att_semester',
-        'today_memo_', 'today_todos_', 'today_notice_'
-      ];
-      prefixes.forEach(prefix => {
-        Object.keys(localStorage)
-          .filter(k => k.startsWith(prefix))
-          .forEach(k => localStorage.removeItem(k));
-      });
-      // 연도별 classInfo도 삭제
-      localStorage.removeItem(clsInfoKey(classYear));
-
-      // ② DB 초기화: 해당 학년도 학생·평가·카테고리 삭제
-      const students = await studentsAPI.getAll(classYear, true); // 전출생 포함
-      for (const s of students) {
-        // 평가 기록 삭제
-        const evals = await evaluationsAPI.getByStudent(s.id, classYear);
-        for (const e of evals) {
-          await evaluationsAPI.delete(e.id);
-        }
-        // 학생 삭제
-        await studentsAPI.delete(s.id, classYear);
-      }
-      // 카테고리 삭제
-      const cats = await categoriesAPI.getAll(classYear);
-      for (const c of cats) {
-        await categoriesAPI.delete(c.id);
-      }
-
-      setShowReset(false);
-      setResetInput('');
-      alert(`✅ ${classYear}학년도 데이터가 모두 초기화되었습니다.\n페이지를 새로고침합니다.`);
-      setTimeout(() => window.location.reload(), 500);
-    } catch (err) {
-      alert('초기화 중 오류가 발생했습니다: ' + err.message);
-    }
+    alert(
+      '초기화 기능은 현재 잠겨 있습니다.\n\n' +
+      '옛 방식은 삭제가 중간에 실패하면 출결·메모·할일이 되돌릴 수 없이 사라졌습니다.\n' +
+      '서버에서 한 번에 안전하게 지우도록 고치는 중입니다.'
+    );
   }
 
   // 계정 기능
@@ -256,9 +231,16 @@ function AccountManager({ teacher }) {
           현재 기준 연도(<strong>{classYear}년</strong>)의 출결·메모·할일·학기 설정·행사일 등
           모든 데이터를 완전히 삭제합니다. <strong>이 작업은 되돌릴 수 없습니다.</strong>
         </p>
-        <button className="acm-reset-btn" onClick={() => setShowReset(true)}>
-          🗑 {classYear}학년도 데이터 초기화
-        </button>
+        {/* 2026-09-11 — 버튼을 안내로 바꿔 잠갔다 (pmem st-app issue #77).
+            handleReset 주석에 옛 구현이 왜 반파로 끝나는지 적어두었다. */}
+        <div style={{
+          background: '#fffbeb', border: '1.5px solid #fcd34d', borderRadius: 8,
+          padding: 12, color: '#78350f', fontSize: 13, lineHeight: 1.6
+        }}>
+          🔒 <strong>초기화 기능을 잠시 잠가두었습니다.</strong><br />
+          옛 방식은 삭제가 중간에 실패하면 출결·메모·할일이 되돌릴 수 없이 사라졌습니다.
+          서버에서 한 번에 안전하게 지우도록 고치는 중이며, 완료되면 다시 열립니다.
+        </div>
       </div>
 
       {/* ── 계정 추가 모달 ── */}
