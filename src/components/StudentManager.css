@@ -103,3 +103,26 @@
   box-shadow: var(--shadow-md);
   text-align: center;
 }
+
+/* ===== 성별 (자리배치 팝업의 남/여 구분에 쓰인다) ===== */
+.gender-todo { color: var(--danger); font-weight: 600; }
+
+.td-gender { width: 96px; }
+
+.gender-btn {
+  width: 30px;
+  padding: 4px 0;
+  margin-right: 4px;
+  background: white;
+  border: 1px solid var(--border-light);
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-tertiary);
+  cursor: pointer;
+  transition: var(--transition);
+}
+.gender-btn:hover { border-color: var(--primary); color: var(--primary-dark); }
+
+.gender-btn.on.male   { background: #36708F; border-color: #36708F; color: #ffffff; }
+.gender-btn.on.female { background: #B0567A; border-color: #B0567A; color: #ffffff; }

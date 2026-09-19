@@ -2,14 +2,33 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { seatingAPI, studentsAPI, currentSchoolYear } from '../utils/api';
 import './SeatingArrangement.css';
 
-// pairMap[a] 에 'b 와 언제 짝이었나'를 쌓는다. {studentId: Map<partnerId, [배치제목, ...]}
+// pairMap[a] 에 'b 와 언제 짝이었나'를 쌓는다. {studentId: Map<partnerId, [{label, ago}, ...]}
 // 횟수만 세면 "왜 중복이라는 거냐"에 답할 수 없어서 어느 배치였는지까지 남긴다.
-function bumpPair(pairMap, a, b, label) {
+// ago = 그 배치가 '몇 번째 이전 배치'인가. 0 이 직전 배치다. 팝업의 색 농도 기준.
+function bumpPair(pairMap, a, b, entry) {
   if(!pairMap[a]) pairMap[a] = new Map();
   const list = pairMap[a].get(b) || [];
-  list.push(label);
+  list.push(entry);
   pairMap[a].set(b, list);
 }
+
+// '몇 번째 이전 배치'를 파란색 5단계로. 5 가 가장 진하다(= 직전 배치).
+// 배치 간격이 보통 2주라 3번째 전까지는 한 배치씩 구분하고 그보다 오래된 것은 뭉뚱그린다.
+// 순위가 아니라 '몇 번째 전'이라 색의 뜻이 학생마다 같다 — 누구 팝업에서든 lv5 는 직전 배치다.
+function recencyLevel(ago) {
+  if(ago <= 0) return 5;
+  if(ago === 1) return 4;
+  if(ago === 2) return 3;
+  if(ago <= 4)  return 2;
+  return 1;
+}
+
+// 팝업을 남/여로 나눈다. gender 는 'M'|'F'|null (학생 관리에서 지정).
+const GENDER_SECTIONS = [
+  { key: 'M',  label: '남' },
+  { key: 'F',  label: '여' },
+  { key: null, label: '미지정' },
+];
 
 function SeatingArrangement() {
   const [arrangements,        setArrangements]        = useState([]);
@@ -52,7 +71,7 @@ function SeatingArrangement() {
   const [rowStats, setRowStats] = useState({});  // {studentId: {row1:n, row2:n, row3:n, row4:n}}
 
   // 중복 짝 맵 — 2인 짝만 집계. 값은 '몇 번 짝이었나'
-  const [duplicatePairMap, setDuplicatePairMap] = useState({});  // {studentId: Map<partnerId, count>}
+  const [duplicatePairMap, setDuplicatePairMap] = useState({});  // {studentId: Map<partnerId, [{label, ago}, ...]>}
 
   // 배치 상세 캐시 {arrangementId: detail}
   // 저장 전까지 배치 상세는 바뀌지 않는다. 캐시가 없으면 배치를 고를 때마다 전 배치를
@@ -112,11 +131,19 @@ function SeatingArrangement() {
     const targets = arrangements.filter(a =>
       a.id !== selectedArrangement.id && new Date(a.created_at).getTime() < cutoff,
     );
+    // '몇 번째 이전 배치'인가 — 0 이 직전. arrangements 의 정렬을 믿지 않고 여기서 직접 센다.
+    const agoOf = new Map(
+      [...targets]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .map((a, i) => [a.id, i]),
+    );
     const details = [];
     for (let i = 0; i < targets.length; i += 6) {
       const chunk = targets.slice(i, i + 6);
       details.push(...await Promise.all(
-        chunk.map(a => fetchDetail(a.id).then(d => d && { ...d, _label: a.title }).catch(() => null)),
+        chunk.map(a => fetchDetail(a.id)
+          .then(d => d && { ...d, _label: a.title, _ago: agoOf.get(a.id) })
+          .catch(() => null)),
       ));
     }
     const failedCount = details.filter(d => !d).length;
@@ -143,6 +170,7 @@ function SeatingArrangement() {
       // 오른쪽·아래만 보면 같은 쌍을 두 번 세지 않는다.
       const gridSnap = Array(10).fill(null).map(()=>Array(10).fill(null));
       detail.positions.forEach(p => { gridSnap[p.row_pos][p.col_pos] = p.student_id; });
+      const entry = { label: detail._label, ago: detail._ago };
       for(let r=0; r<10; r++) {
         for(let c=0; c<10; c++) {
           const a = gridSnap[r][c];
@@ -150,8 +178,8 @@ function SeatingArrangement() {
           [[0,1],[1,0]].forEach(([dr,dc]) => {
             const b = gridSnap[r+dr]?.[c+dc];
             if(!b) return;
-            bumpPair(pairMap, a, b, detail._label);
-            bumpPair(pairMap, b, a, detail._label);
+            bumpPair(pairMap, a, b, entry);
+            bumpPair(pairMap, b, a, entry);
           });
         }
       }
@@ -316,9 +344,22 @@ function SeatingArrangement() {
     const hist=duplicatePairMap[cur.id];
     if(!hist||hist.size===0){ setHistoryPopup(null); return; }
     const partners=[...hist.entries()]
-      .map(([pid,when])=>({ id:pid, count:when.length, when, name: students.find(s=>s.id===pid)?.name || `${pid}번` }))
-      .sort((a,b)=> b.count-a.count || a.name.localeCompare(b.name,'ko'));
-    setHistoryPopup({row, col, studentName: cur.name, partners});
+      .map(([pid,when])=>{
+        const s=students.find(st=>st.id===pid);
+        return {
+          id:pid, count:when.length, when,
+          ago: Math.min(...when.map(w=>w.ago)),   // 가장 최근에 짝이었던 때. 0 = 직전 배치
+          gender: s?.gender || null,
+          name: s?.name || `${pid}번`,
+        };
+      })
+      // 색이 최근순을 나타내므로 나열도 최근순으로 맞춘다 — 왼쪽 위가 가장 피해야 할 짝.
+      .sort((a,b)=> a.ago-b.ago || b.count-a.count || a.name.localeCompare(b.name,'ko'));
+    // 성별을 아직 하나도 안 넣었으면 구역 제목이 '미지정' 하나뿐이라 군더더기다 — 그때는 안 붙인다.
+    const sections=GENDER_SECTIONS
+      .map(sec=>({ label:sec.label, list:partners.filter(p=>p.gender===sec.key) }))
+      .filter(sec=>sec.list.length>0);
+    setHistoryPopup({row, col, studentName: cur.name, partners, sections});
   };
 
   const loadArrangementDetails = async (id) => {
@@ -667,7 +708,7 @@ function SeatingArrangement() {
                     {currentDuplicatePairs().map(d => (
                       <div key={d.key} style={{lineHeight:1.7}}>
                         <strong>{d.a} ↔ {d.b}</strong>
-                        <span style={{opacity:0.85}}>{' — '}{d.when.join(', ')}</span>
+                        <span style={{opacity:0.85}}>{' — '}{d.when.map(w=>w.label).join(', ')}</span>
                       </div>
                     ))}
                   </div>
@@ -743,13 +784,21 @@ function SeatingArrangement() {
                                   <div className="history-popup-count">
                                     지금까지 짝 {historyPopup.partners.length}명
                                   </div>
-                                  <div className="history-popup-chips">
-                                    {historyPopup.partners.map(p=>(
-                                      <span key={p.id} className="history-popup-chip">
-                                        {p.name}{p.count>1?` ×${p.count}`:''}
-                                      </span>
-                                    ))}
-                                  </div>
+                                  {historyPopup.sections.map(sec=>(
+                                    <div key={sec.label} className="history-popup-section">
+                                      {historyPopup.sections.length>1 && (
+                                        <div className="history-popup-section-label">{sec.label} {sec.list.length}</div>
+                                      )}
+                                      <div className="history-popup-chips">
+                                        {sec.list.map(p=>(
+                                          <span key={p.id} className={`history-popup-chip lv${recencyLevel(p.ago)}`}>
+                                            {p.name}{p.count>1?` ×${p.count}`:''}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  ))}
+                                  <div className="history-popup-legend">진할수록 최근에 앉은 짝</div>
                                 </div>
                               )}
                             </div>

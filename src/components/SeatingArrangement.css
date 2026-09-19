@@ -780,16 +780,19 @@
   left: 50%;
   transform: translateX(-50%);
   margin-bottom: 6px;
-  background: #111827;
-  border: 1px solid #374151;
+  /* 배경을 흰색으로 바꿨다. 짝 칩이 '최근일수록 짙은 파랑'을 나타내게 되었는데,
+     예전의 거의 검은 배경(#111827) 위에서는 짙을수록 배경에 묻혀 가장 최근 짝이
+     가장 안 보이는 역전이 일어난다. 흰 바탕이라야 짙다 = 눈에 띈다가 성립한다. */
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
   border-radius: 8px;
   padding: 8px 12px;
   z-index: 100;
   width: max-content;
-  max-width: 230px;
+  max-width: 250px;
   animation: popupFadeIn 0.15s;
   pointer-events: none;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  box-shadow: 0 6px 20px rgba(15,23,42,0.22);
 }
 
 @keyframes popupFadeIn {
@@ -811,7 +814,7 @@
    컨테이너 배경·모서리·배치는 정상이었고 로컬 브라우저 재현에서는 색도 정상이라
    원인을 특정하지 못했다 — 우선 명시도를 올리고 대비를 키워 둔다. */
 .history-popup .history-popup-count {
-  color: #cbd5e1;
+  color: #475569;
   font-size: 11px;
   margin-bottom: 5px;
 }
@@ -823,15 +826,41 @@
 }
 
 .history-popup .history-popup-chip {
-  color: #fde68a;
+  color: #1e3a8a;
   font-weight: 700;
   font-size: 12.5px;
   white-space: nowrap;
-  background: #374151;
-  border: 1px solid #4b5563;
+  background: #e2e8f0;
+  border: 1px solid #cbd5e1;
   border-radius: 4px;
   padding: 2px 7px;
 }
+
+/* 남/여 구역 */
+.history-popup .history-popup-section + .history-popup-section { margin-top: 6px; }
+
+.history-popup .history-popup-section-label {
+  color: #64748b;
+  font-size: 10.5px;
+  font-weight: 700;
+  margin-bottom: 3px;
+}
+
+.history-popup .history-popup-legend {
+  color: #94a3b8;
+  font-size: 10px;
+  margin-top: 6px;
+}
+
+/* 최근일수록 진한 파랑. lv5 = 직전 배치, lv1 = 5번째 이전보다 오래된 짝.
+   단계마다 글자색을 같이 못박는다 — 위 주석의 '글자색이 상속색으로 새는' 증상이
+   진한 배경 위에서 나면 글자가 안 보이기 때문이다. 선택자를 클래스 3개(0,3,0)로
+   올려 index.css 의 테마 규칙(0,2,0)보다 확실히 세게 둔다. */
+.history-popup .history-popup-chip.lv5 { background: #1e3a8a; border-color: #1e3a8a; color: #ffffff; }
+.history-popup .history-popup-chip.lv4 { background: #1d4ed8; border-color: #1d4ed8; color: #ffffff; }
+.history-popup .history-popup-chip.lv3 { background: #2563eb; border-color: #2563eb; color: #ffffff; }
+.history-popup .history-popup-chip.lv2 { background: #93c5fd; border-color: #7cb4fb; color: #16305f; }
+.history-popup .history-popup-chip.lv1 { background: #e0edfd; border-color: #c7dffb; color: #1e3a8a; }
 
 /* ===== 로딩 ===== */
 .seating-loading {

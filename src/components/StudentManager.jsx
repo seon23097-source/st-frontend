@@ -53,6 +53,17 @@ function StudentManager({ students, onUpdate, classYear }) {
     }
   };
 
+  // 성별 지정 — 같은 값을 다시 누르면 미지정으로 돌아간다(잘못 누른 것을 지우는 유일한 길).
+  // 자리배치 팝업이 짝을 남/여로 나눌 때 이 값을 쓴다.
+  const handleGenderSet = async (student, g) => {
+    try {
+      await studentsAPI.update(student.id, { gender: student.gender === g ? null : g });
+      onUpdate();
+    } catch (error) {
+      alert(error.message || '성별 저장 실패');
+    }
+  };
+
   // 전출 처리
   const handleDeactivate = async (student) => {
     if (!confirm(`${student.name} 학생을 전출 처리하시겠습니까?\n평가 기록은 보존되며 아래 전출 목록에서 복구할 수 있습니다.`)) return;
@@ -82,7 +93,12 @@ function StudentManager({ students, onUpdate, classYear }) {
       <div className="student-manager-header">
         <div>
           <h2>학생 관리</h2>
-          <p className="student-count-info">재학생 {students.length}명</p>
+          <p className="student-count-info">
+            재학생 {students.length}명
+            {students.some(s => !s.gender) && (
+              <span className="gender-todo"> · 성별 미지정 {students.filter(s => !s.gender).length}명</span>
+            )}
+          </p>
         </div>
         <button className="btn btn-primary" onClick={() => setShowAddModal(true)}>
           + 전입 학생 추가
@@ -98,6 +114,7 @@ function StudentManager({ students, onUpdate, classYear }) {
               <tr>
                 <th>번호</th>
                 <th>이름</th>
+                <th>성별</th>
                 <th>등록일</th>
                 <th>관리</th>
               </tr>
@@ -125,6 +142,12 @@ function StudentManager({ students, onUpdate, classYear }) {
                     ) : (
                       <span>{student.name}</span>
                     )}
+                  </td>
+                  <td className="td-gender">
+                    <button className={`gender-btn${student.gender === 'M' ? ' on male' : ''}`}
+                      onClick={() => handleGenderSet(student, 'M')}>남</button>
+                    <button className={`gender-btn${student.gender === 'F' ? ' on female' : ''}`}
+                      onClick={() => handleGenderSet(student, 'F')}>여</button>
                   </td>
                   <td className="td-date">{String(student.created_at).substring(0, 10)}</td>
                   <td className="td-actions">
