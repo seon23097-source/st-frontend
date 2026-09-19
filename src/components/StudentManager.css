@@ -107,7 +107,11 @@
 /* ===== 성별 (자리배치 팝업의 남/여 구분에 쓰인다) ===== */
 .gender-todo { color: var(--danger); font-weight: 600; }
 
-.td-gender { width: 96px; }
+/* .student-table td 의 좌우 패딩이 16px 씩이라 96px 칸의 내용 폭은 64px 였다.
+   버튼 둘이 30+4+30+4 = 68px 라 4px 모자라 줄바꿈이 나면서 행 높이가 54→81px 로
+   뛰었고, display:flex 인 .td-actions 는 표 셀이 아니라 그 높이를 못 따라가
+   '관리' 칸이 행과 어긋나 보였다. 폭을 넉넉히 주고 줄바꿈 자체를 막는다. */
+.td-gender { width: 110px; white-space: nowrap; }
 
 .gender-btn {
   width: 30px;
